@@ -76,6 +76,9 @@ bool nas::handle_attach_request(uint32_t                enb_ue_s1ap_id,
                                 const nas_if_t&         itf,
                                 srslte::log*            nas_log)
 {
+  uint16_t                                       mcc = 0;
+  uint16_t                                       mnc = 0;
+  uint16_t                                       mme_group_id = 0;
   uint8_t                                        mmec = 0;
   uint32_t                                       m_tmsi = 0;
   uint64_t                                       imsi   = 0;
@@ -111,10 +114,14 @@ bool nas::handle_attach_request(uint32_t                enb_ue_s1ap_id,
     m_tmsi = attach_req.eps_mobile_id.guti.m_tmsi;
     imsi   = s1ap->find_imsi_from_m_tmsi(m_tmsi);
     mmec   = attach_req.eps_mobile_id.guti.mme_code;
+    mcc    = attach_req.eps_mobile_id.guti.mcc;
+    mnc    = attach_req.eps_mobile_id.guti.mnc;
+    mme_group_id = attach_req.eps_mobile_id.guti.mme_group_id;
+
     nas_log->console("Attach request -- M-TMSI: 0x%x\n", m_tmsi);
     nas_log->info("Attach request -- M-TMSI: 0x%x\n", m_tmsi);
-    nas_log->console("Attach request -- MMEC: 0x%x\n", mmec);
-    nas_log->info("Attach request -- MMEC: 0x%x\n", mmec);
+    nas_log->console("Attach request -- GUTI: 0x%x 0x%x 0x%x 0x%x\n", mcc, mnc, mme_group_id, mmec);
+    nas_log->info("Attach request -- GUTI: 0x%x 0x%x 0x%x 0x%x\n", mcc, mnc, mme_group_id, mmec);
   } else {
     nas_log->error("Unhandled Mobile Id type in attach request\n");
     return false;

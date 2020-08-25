@@ -202,6 +202,10 @@ private:
 
   // Packet generators
   void gen_attach_request(srslte::unique_byte_buffer_t& msg);
+
+  // HACKING
+  void gen_detach_request(srslte::unique_byte_buffer_t& pdu, bool switch_off);
+
   void gen_service_request(srslte::unique_byte_buffer_t& msg);
 
   // Senders

@@ -26,6 +26,8 @@
 #include <uhd/types/sensors.h>
 #include <unistd.h>
 
+#include <stdio.h>
+
 #include "rf_helper.h"
 #include "srslte/srslte.h"
 #include "uhd_c_api.h"
@@ -730,6 +732,7 @@ int rf_uhd_open_multi(char* args, void** h, uint32_t nof_channels)
 
     /* Set default rate to avoid decimation warnings and warn about USB2 low throughput */
     double default_srate = (double)srslte_sampling_freq_hz(SRSLTE_MAX_PRB); // Consider standard rates
+    printf("tx rx rate : %lf", default_srate);
     for (int i = 0; i < nof_channels; i++) {
       uhd_usrp_set_rx_rate(handler->usrp, default_srate, i);
       uhd_usrp_set_tx_rate(handler->usrp, default_srate, i);
