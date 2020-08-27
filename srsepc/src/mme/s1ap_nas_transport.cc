@@ -102,6 +102,9 @@ bool s1ap_nas_transport::handle_initial_ue_message(const asn1::s1ap::init_ue_msg
   uint32_t enb_ue_s1ap_id = init_ue.protocol_ies.enb_ue_s1ap_id.value.value;
   uint8_t  GUTI_buffer[10];
   liblte_mme_parse_msg_header((LIBLTE_BYTE_MSG_STRUCT*)nas_msg, &pd, &msg_type);
+   
+
+  m_s1ap_log->console("\n");
 
   m_s1ap_log->console("Initial UE message: %s\n", liblte_nas_msg_type_to_string(msg_type));
   m_s1ap_log->info("Initial UE message: %s\n", liblte_nas_msg_type_to_string(msg_type));
@@ -129,7 +132,11 @@ bool s1ap_nas_transport::handle_initial_ue_message(const asn1::s1ap::init_ue_msg
           nas::handle_detach_request(m_tmsi, enb_ue_s1ap_id, enb_sri, nas_msg, m_nas_init, m_nas_if, m_s1ap->m_nas_log);
       break;
     case LIBLTE_MME_MSG_TYPE_TRACKING_AREA_UPDATE_REQUEST:
-            for(unsigned int i = 11; i < 21; i++){  //if it is Tracking Area Update, GUTI starts from 11, and it is 10 bytes(octets)
+<<<<<<< HEAD
+      for(unsigned int i = 11; i < 21; i++){  //if it is Tracking Area Update, GUTI starts from 11, and it is 10 bytes(octets)
+=======
+      for(unsigned int i = 11; i < 21; i++){  //if it is Tracking Area Update, GUTI starts from 11, and it is 10 bytes(octets)
+>>>>>>> upstream/TAU_reject_attack
         GUTI_buffer[i-11] = nas_msg->msg[i];
       }
 
@@ -137,6 +144,11 @@ bool s1ap_nas_transport::handle_initial_ue_message(const asn1::s1ap::init_ue_msg
                ((uint32_t)GUTI_buffer[7]<<16 & 0x00FF0000)+
                ((uint32_t)GUTI_buffer[8]<<8  & 0x0000FF00)+
                ((uint32_t)GUTI_buffer[9]<<0  & 0x000000FF);
+
+<<<<<<< HEAD
+=======
+
+>>>>>>> upstream/TAU_reject_attack
       m_s1ap_log->console("Received Initial UE message -- Tracking Area Update Request\n");
       m_s1ap_log->info("Received Initial UE message -- Tracking Area Update Request\n");
       err = nas::handle_tracking_area_update_request(
@@ -152,7 +164,7 @@ bool s1ap_nas_transport::handle_initial_ue_message(const asn1::s1ap::init_ue_msg
 }
 
 bool s1ap_nas_transport::handle_uplink_nas_transport(const asn1::s1ap::ul_nas_transport_s& ul_xport,
-                                                     struct sctp_sndrcvinfo*               enb_sri)
+    struct sctp_sndrcvinfo*               enb_sri)
 {
   uint8_t  pd, msg_type, sec_hdr_type;
   uint32_t enb_ue_s1ap_id      = ul_xport.protocol_ies.enb_ue_s1ap_id.value.value;
@@ -201,7 +213,7 @@ bool s1ap_nas_transport::handle_uplink_nas_transport(const asn1::s1ap::ul_nas_tr
     mac_valid = nas_ctx->integrity_check(nas_msg);
     if (mac_valid == false) {
       m_s1ap_log->warning("Invalid MAC message. Even if security header indicates integrity protection (Maybe: "
-                          "Identity Response or Authentication Response)\n");
+          "Identity Response or Authentication Response)\n");
     }
   }
 
@@ -246,9 +258,9 @@ bool s1ap_nas_transport::handle_uplink_nas_transport(const asn1::s1ap::ul_nas_tr
   // - DETACH ACCEPT;
   // - TRACKING AREA UPDATE REQUEST.
   m_s1ap_log->info("UL NAS: sec_hdr_type: %s, mac_vaild: %s, msg_encrypted: %s\n",
-                   liblte_nas_sec_hdr_type_to_string(sec_hdr_type),
-                   mac_valid == true ? "yes" : "no",
-                   msg_encrypted == true ? "yes" : "no");
+      liblte_nas_sec_hdr_type_to_string(sec_hdr_type),
+      mac_valid == true ? "yes" : "no",
+      msg_encrypted == true ? "yes" : "no");
 
   switch (msg_type) {
     case LIBLTE_MME_MSG_TYPE_ATTACH_REQUEST:
@@ -271,13 +283,13 @@ bool s1ap_nas_transport::handle_uplink_nas_transport(const asn1::s1ap::ul_nas_tr
       sec_ctx->dl_nas_count = 0;
       increase_ul_nas_cnt   = false;
       break;
-    // Authentication failure with the option sync failure can be sent not integrity protected
+      // Authentication failure with the option sync failure can be sent not integrity protected
     case LIBLTE_MME_MSG_TYPE_AUTHENTICATION_FAILURE:
       m_s1ap_log->info("UL NAS: Authentication Failure\n");
       m_s1ap_log->console("UL NAS: Authentication Failure\n");
       nas_ctx->handle_authentication_failure(nas_msg);
       break;
-    // Detach request can be sent not integrity protected when "power off" option is used
+      // Detach request can be sent not integrity protected when "power off" option is used
     case LIBLTE_MME_MSG_TYPE_DETACH_REQUEST:
       m_s1ap_log->info("UL NAS: Detach Request\n");
       m_s1ap_log->console("UL NAS: Detach Request\n");
@@ -293,9 +305,9 @@ bool s1ap_nas_transport::handle_uplink_nas_transport(const asn1::s1ap::ul_nas_tr
       } else {
         // Security Mode Complete was not integrity protected
         m_s1ap_log->console("Security Mode Complete %s. Discard message.\n",
-                            (mac_valid ? "not integrity protected" : "invalid integrity"));
+            (mac_valid ? "not integrity protected" : "invalid integrity"));
         m_s1ap_log->warning("Security Mode Complete %s. Discard message.\n",
-                            (mac_valid ? "not integrity protected" : "invalid integrity"));
+            (mac_valid ? "not integrity protected" : "invalid integrity"));
         increase_ul_nas_cnt = false;
       }
       break;
@@ -319,9 +331,9 @@ bool s1ap_nas_transport::handle_uplink_nas_transport(const asn1::s1ap::ul_nas_tr
       } else {
         // Attach Complete was not integrity protected
         m_s1ap_log->console("ESM Information Response %s. Discard message.\n",
-                            (mac_valid ? "not integrity protected" : "invalid integrity"));
+            (mac_valid ? "not integrity protected" : "invalid integrity"));
         m_s1ap_log->warning("ESM Information Response %s. Discard message.\n",
-                            (mac_valid ? "not integrity protected" : "invalid integrity"));
+            (mac_valid ? "not integrity protected" : "invalid integrity"));
         increase_ul_nas_cnt = false;
       }
       break;
@@ -347,14 +359,14 @@ bool s1ap_nas_transport::handle_uplink_nas_transport(const asn1::s1ap::ul_nas_tr
 }
 
 bool s1ap_nas_transport::send_downlink_nas_transport(uint32_t               enb_ue_s1ap_id,
-                                                     uint32_t               mme_ue_s1ap_id,
-                                                     srslte::byte_buffer_t* nas_msg,
-                                                     struct sctp_sndrcvinfo enb_sri)
+    uint32_t               mme_ue_s1ap_id,
+    srslte::byte_buffer_t* nas_msg,
+    struct sctp_sndrcvinfo enb_sri)
 {
   m_s1ap_log->debug("Sending message to eNB with SCTP association %d. MME UE S1AP ID %d, eNB UE S1AP ID %d\n",
-                    enb_sri.sinfo_assoc_id,
-                    mme_ue_s1ap_id,
-                    enb_ue_s1ap_id);
+      enb_sri.sinfo_assoc_id,
+      mme_ue_s1ap_id,
+      enb_ue_s1ap_id);
 
   // Setup initiating message
   s1ap_pdu_t tx_pdu;
