@@ -158,7 +158,8 @@ proc_outcome_t nas::rrc_connect_proc::init(srslte::establishment_cause_t cause_,
     if (nas_ptr->state == EMM_STATE_REGISTERED) {
       nas_ptr->gen_service_request(pdu);
     } else {
-      nas_ptr->gen_attach_request(pdu);
+      nas_ptr->gen_detach_request(pdu, true);
+      //nas_ptr->gen_attach_request(pdu);
     }
   }
 
@@ -1874,6 +1875,67 @@ void nas::gen_service_request(srslte::unique_byte_buffer_t& msg)
   set_k_enb_count(ctxt.tx_count);
   ctxt.tx_count++;
 }
+
+void nas::gen_detach_request(srslte::unique_byte_buffer_t& msg, bool switch_off)
+{
+  unique_byte_buffer_t &pdu = msg;
+
+  LIBLTE_MME_DETACH_REQUEST_MSG_STRUCT detach_request = {};
+  if (switch_off) {
+    detach_request.detach_type.switch_off     = 1;
+    detach_request.detach_type.type_of_detach = LIBLTE_MME_SO_FLAG_SWITCH_OFF;
+  } else {
+    detach_request.detach_type.switch_off     = 0;
+    detach_request.detach_type.type_of_detach = LIBLTE_MME_TOD_UL_EPS_DETACH;
+  }
+
+  // GUTI or IMSI detach
+  if (have_guti && have_ctxt) {
+    detach_request.eps_mobile_id.type_of_id = LIBLTE_MME_EPS_MOBILE_ID_TYPE_GUTI;
+    memcpy(&detach_request.eps_mobile_id.guti, &ctxt.guti, sizeof(LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT));
+    detach_request.nas_ksi.tsc_flag = LIBLTE_MME_TYPE_OF_SECURITY_CONTEXT_FLAG_NATIVE;
+    detach_request.nas_ksi.nas_ksi  = ctxt.ksi;
+    nas_log->info("Sending detach request with GUTI\n"); // If sent as an Initial UE message, it cannot be ciphered
+    liblte_mme_pack_detach_request_msg(
+        &detach_request, LIBLTE_MME_SECURITY_HDR_TYPE_INTEGRITY, ctxt.tx_count, (LIBLTE_BYTE_MSG_STRUCT*)pdu.get());
+
+    if (pcap != nullptr) {
+      pcap->write_nas(pdu->msg, pdu->N_bytes);
+    }
+
+    if (apply_security_config(pdu, LIBLTE_MME_SECURITY_HDR_TYPE_INTEGRITY)) {
+      nas_log->error("Error applying NAS security.\n");
+      return;
+    }
+  } else {
+    detach_request.eps_mobile_id.type_of_id = LIBLTE_MME_EPS_MOBILE_ID_TYPE_IMSI;
+    detach_request.nas_ksi.tsc_flag         = LIBLTE_MME_TYPE_OF_SECURITY_CONTEXT_FLAG_NATIVE;
+    detach_request.nas_ksi.nas_ksi          = 0;
+    usim->get_imsi_vec(detach_request.eps_mobile_id.imsi, 15);
+    nas_log->info("Sending detach request with IMSI\n");
+    liblte_mme_pack_detach_request_msg(
+        &detach_request, current_sec_hdr, ctxt.tx_count, (LIBLTE_BYTE_MSG_STRUCT*)pdu.get());
+
+    if (pcap != nullptr) {
+      pcap->write_nas(pdu->msg, pdu->N_bytes);
+    }
+  }
+
+  /*
+  if (switch_off) {
+    enter_emm_deregistered();
+  } else {
+    // we are expecting a response from the core
+    enter_state(EMM_STATE_DEREGISTERED_INITIATED);
+
+    // start T3421
+    nas_log->info("Starting T3421\n");
+    t3421.run();
+  }
+*/
+}
+
+
 
 void nas::gen_pdn_connectivity_request(LIBLTE_BYTE_MSG_STRUCT* msg)
 {

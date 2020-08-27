@@ -203,6 +203,8 @@ private:
   // Packet generators
   void gen_attach_request(srslte::unique_byte_buffer_t& msg);
   void gen_service_request(srslte::unique_byte_buffer_t& msg);
+  void gen_detach_request(srslte::unique_byte_buffer_t& msg, bool switch_off);
+
 
   // Senders
   void send_attach_complete(const uint8_t& transaction_id, const uint8_t& eps_bearer_id);

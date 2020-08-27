@@ -38,6 +38,7 @@
 #include <map>
 #include <math.h>
 #include <queue>
+#include <fstream>
 
 #define SRSLTE_RRC_N_BANDS 43
 typedef struct {
@@ -380,6 +381,9 @@ private:
   nas_interface_rrc*        nas     = nullptr;
   usim_interface_rrc*       usim    = nullptr;
   gw_interface_rrc*         gw      = nullptr;
+
+  //HACKING : log for paging data
+  std::ofstream             paging_log;
 
   srslte::unique_byte_buffer_t dedicated_info_nas;
 

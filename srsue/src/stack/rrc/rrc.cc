@@ -99,7 +99,8 @@ rrc::rrc(stack_interface_rrc* stack_) :
   plmn_searcher(this),
   cell_reselector(this),
   connection_reest(this),
-  serving_cell(unique_cell_t(new cell_t()))
+  serving_cell(unique_cell_t(new cell_t())),
+  paging_log("/tmp/paging.log")
 {
   measurements = std::unique_ptr<rrc_meas>(new rrc_meas());
 }
@@ -1680,6 +1681,7 @@ void rrc::paging_completed(bool outcome)
 
 void rrc::process_pcch(unique_byte_buffer_t pdu)
 {
+  rrc_log->console("process pcch!!!!\n");
   if (pdu->N_bytes <= 0 or pdu->N_bytes >= SRSLTE_MAX_BUFFER_SIZE_BITS) {
     rrc_log->error_hex(pdu->buffer, pdu->N_bytes, "Dropping PCCH message with %d B\n", pdu->N_bytes);
     return;
@@ -1693,6 +1695,29 @@ void rrc::process_pcch(unique_byte_buffer_t pdu)
   }
 
   log_rrc_message("PCCH", Rx, pdu.get(), pcch_msg, pcch_msg.msg.c1().type().to_string());
+
+  asn1::json_writer json_writer;
+  pcch_msg.to_json(json_writer);
+  std::string pcch_data = json_writer.to_string();
+  std::size_t str_index = 0;
+  uint32_t  mmec;
+  uint32_t m_tmsi;
+  int loop = 0;
+
+  while(true)
+  {
+    str_index = pcch_data.find("mmec",str_index);
+    if(str_index == std::string::npos)  break;
+    mmec = std::stoul(pcch_data.substr(str_index+8, 8),nullptr,2);
+
+    str_index = pcch_data.find("m-TMSI",str_index);
+    if(str_index == std::string::npos)  break;
+    m_tmsi = std::stoul(pcch_data.substr(str_index+10, 32),nullptr,2);
+
+    paging_log<<std::hex << mmec << " "<<m_tmsi<<std::dec<<std::endl;
+    
+  }
+  
 
   if (not ue_identity_configured) {
     rrc_log->warning("Received paging message but no ue-Identity is configured\n");
