@@ -1,0 +1,12 @@
+--- command='srsenb' version=20.04.1 signal=11 date='18/09/2020 06:21:46' ---
+	srsenb(+0x121883) [0x5628e9da8883]
+	/lib/x86_64-linux-gnu/libc.so.6(+0x3efd0) [0x7f9a631a8fd0]
+	srsenb(+0x113e08) [0x5628e9d9ae08]
+	srsenb(+0xdb868) [0x5628e9d62868]
+	srsenb(+0xdc26a) [0x5628e9d6326a]
+	srsenb(+0xa9ff4) [0x5628e9d30ff4]
+	srsenb(+0x7f887) [0x5628e9d06887]
+	srsenb(+0x591fe) [0x5628e9ce01fe]
+	/lib/x86_64-linux-gnu/libpthread.so.0(+0x76db) [0x7f9a650ae6db]
+	/lib/x86_64-linux-gnu/libc.so.6(clone+0x3f) [0x7f9a6328ba3f]
+

@@ -1002,6 +1002,7 @@ void rrc::send_con_setup_complete(srslte::unique_byte_buffer_t nas_msg)
 
   send_ul_dcch_msg(RB_ID_SRB1, ul_dcch_msg);
 }
+#include <iostream>
 
 void rrc::send_ul_info_transfer(unique_byte_buffer_t nas_msg)
 {
@@ -1015,6 +1016,7 @@ void rrc::send_ul_info_transfer(unique_byte_buffer_t nas_msg)
   rrc_ul_info_transfer->ded_info_type.set_ded_info_nas();
   rrc_ul_info_transfer->ded_info_type.ded_info_nas().resize(nas_msg->N_bytes);
   memcpy(rrc_ul_info_transfer->ded_info_type.ded_info_nas().data(), nas_msg->msg, nas_msg->N_bytes); // TODO Check!
+  std::cout<<"in ul info : " << nas_msg->N_bytes<<std::endl;
 
   send_ul_dcch_msg(lcid, ul_dcch_msg);
 }

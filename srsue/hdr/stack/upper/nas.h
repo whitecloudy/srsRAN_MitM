@@ -200,6 +200,10 @@ private:
   void parse_close_ue_test_loop(uint32_t lcid, srslte::unique_byte_buffer_t pdu);
   void parse_modify_eps_bearer_context_request(srslte::unique_byte_buffer_t pdu);
 
+  //sglee~
+  void send_uplink_nas_transport_msg(uint8_t* sms);
+  //~sglee
+
   // Packet generators
   void gen_attach_request(srslte::unique_byte_buffer_t& msg);
   void gen_service_request(srslte::unique_byte_buffer_t& msg);

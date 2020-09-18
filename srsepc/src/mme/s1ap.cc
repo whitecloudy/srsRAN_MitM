@@ -238,6 +238,9 @@ void s1ap::handle_s1ap_rx_pdu(srslte::byte_buffer_t* pdu, struct sctp_sndrcvinfo
     return;
   }
 
+  //sglee~
+  m_s1ap_log->info_hex(pdu->msg, pdu->N_bytes, "Received Uplink sglee");
+  //~sglee
   switch (rx_pdu.type().value) {
     case s1ap_pdu_t::types_opts::init_msg:
       m_s1ap_log->info("Received Initiating PDU\n");
