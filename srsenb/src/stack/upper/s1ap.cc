@@ -652,6 +652,7 @@ bool s1ap::handle_initialctxtsetuprequest(const init_context_setup_request_s& ms
 
   return true;
 }
+
 bool s1ap::handle_paging(const asn1::s1ap::paging_s& msg)
 {
   if (msg.ext) {

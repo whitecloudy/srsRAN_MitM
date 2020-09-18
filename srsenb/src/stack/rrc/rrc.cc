@@ -35,8 +35,6 @@ using srslte::uint8_to_uint32;
 
 using namespace asn1::rrc;
 
-uint32_t sglee = 0;
-
 namespace srsenb {
 
 rrc::rrc() : rrc_log("RRC")
@@ -481,36 +479,14 @@ void rrc::add_paging_id(uint32_t ueid, const asn1::s1ap::ue_paging_id_c& ue_pagi
 bool rrc::is_paging_opportunity(uint32_t tti, uint32_t* payload_len)
 {
   constexpr static int sf_pattern[4][4] = {{9, 4, -1, 0}, {-1, 9, -1, 4}, {-1, -1, -1, 5}, {-1, -1, -1, 9}};
- 
-  /* 
-  //sglee~
-  paging_record_s paging_elem;
-  paging_elem.ue_id.set_s_tmsi();
-  uint8_t mmec =0x11;
-  paging_elem.ue_id.s_tmsi().mmec.from_number(mmec);
-  uint32_t m_tmsi = 0xd0215dee;
-  paging_elem.ue_id.s_tmsi().m_tmsi.from_number(m_tmsi);
-  paging_elem.cn_domain = paging_record_s::cn_domain_e_::ps;
-  pending_paging.insert(std::make_pair(450050991911162, paging_elem));
-  */ 
-  nof_si_messages = generate_sibs();
-  //~sglee
-  
-  /*
+
   if (pending_paging.empty()) {
     return false;
   }
-  */
 
   asn1::rrc::pcch_msg_s pcch_msg;
   pcch_msg.msg.set_c1();
   paging_s* paging_rec = &pcch_msg.msg.c1().paging();
-  
-  //sglee~
-  paging_rec->non_crit_ext_present = true;
-  paging_rec->non_crit_ext.non_crit_ext_present = true;
-  paging_rec->non_crit_ext.non_crit_ext.cmas_ind_r9_present = true;
-  //~sglee
 
   // Default paging cycle, should get DRX from user
   uint32_t T  = cfg.sibs[1].sib2().rr_cfg_common.pcch_cfg.default_paging_cycle.to_number();
@@ -558,10 +534,7 @@ bool rrc::is_paging_opportunity(uint32_t tti, uint32_t* payload_len)
     }
   }
 
-  //sglee~
-  //if (paging_rec->paging_record_list.size() > 0) {
-  if (true) {
-  //~sglee
+  if (paging_rec->paging_record_list.size() > 0) {
     byte_buf_paging.clear();
     asn1::bit_ref bref(byte_buf_paging.msg, byte_buf_paging.get_tailroom());
     if (pcch_msg.pack(bref) == asn1::SRSASN_ERROR_ENCODE_FAIL) {
@@ -843,7 +816,6 @@ uint32_t rrc::generate_sibs()
     // Copy SIB1 to first SI message
     msg[0].msg.set_c1().set_sib_type1() = cell_ctxt->sib1;
 
-      sglee++;
     // Copy rest of SIBs
     for (uint32_t sched_info_elem = 0; sched_info_elem < nof_messages - 1; sched_info_elem++) {
       uint32_t msg_index = sched_info_elem + 1; // first msg is SIB1, therefore start with second
@@ -853,19 +825,16 @@ uint32_t rrc::generate_sibs()
           msg[msg_index].msg.c1().sys_info().crit_exts.sys_info_r8().sib_type_and_info;
 
       // SIB2 always in second SI message
-      if (msg_index == 1 && (int)(sglee / 200) % 2 == 0) {
+      if (msg_index == 1) {
         sib_info_item_c sibitem;
         sibitem.set_sib2() = cell_ctxt->sib2;
         sib_list.push_back(sibitem);
-
       }
 
       // Add other SIBs to this message, if any
-    if((int)(sglee / 200) % 2 == 1)
       for (auto& mapping_enum : sched_info[sched_info_elem].sib_map_info) {
         sib_list.push_back(cfg.sibs[(int)mapping_enum + 2]);
       }
-
     }
 
     // Pack payload for all messages

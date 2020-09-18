@@ -35,6 +35,7 @@
 #include "srslte/common/security.h"
 #include "srsue/hdr/stack/upper/nas.h"
 
+#include <stdio.h>
 using namespace srslte;
 
 #define ProcError(fmt, ...) nas_ptr->nas_log->error("Proc \"%s\" - " fmt, name(), ##__VA_ARGS__)
@@ -158,7 +159,10 @@ proc_outcome_t nas::rrc_connect_proc::init(srslte::establishment_cause_t cause_,
     if (nas_ptr->state == EMM_STATE_REGISTERED) {
       nas_ptr->gen_service_request(pdu);
     } else {
+      
+      ProcInfo("Generate nas attach sglee\n");
       nas_ptr->gen_attach_request(pdu);
+      
     }
   }
 
@@ -176,6 +180,15 @@ proc_outcome_t nas::rrc_connect_proc::init(srslte::establishment_cause_t cause_,
     ProcError("Failed to initiate a connection request procedure\n");
     return proc_outcome_t::error;
   }
+          
+  /*
+  //sglee~
+  //uint8_t sms[] = {(uint8_t)(0x09), (uint8_t)(0x01), (uint8_t)(0x1e), (uint8_t)(0x00), (uint8_t)(0x00), (uint8_t)(0x00), (uint8_t)(0x08), (uint8_t)(0x91), (uint8_t)(0x28), (uint8_t)(0x01), (uint8_t)(0x00), (uint8_t)(0x99), (uint8_t)(0x01), (uint8_t)(0x99), (uint8_t)(0x91), (uint8_t)(0x11), (uint8_t)(0x01), (uint8_t)(0xd2), (uint8_t)(0x07), (uint8_t)(0x91), (uint8_t)(0x28), (uint8_t)(0x01), (uint8_t)(0x02), (uint8_t)(0x19), (uint8_t)(0x51), (uint8_t)(0x81), (uint8_t)(0x00), (uint8_t)(0x05), (uint8_t)(0xe8), (uint8_t)(0x32), (uint8_t)(0x9b), (uint8_t)(0xfd), (uint8_t)(0x06)};
+  uint8_t sms[] = {(uint8_t)(0x09), (uint8_t)(0x01), (uint8_t)(0x1e), (uint8_t)(0x00), (uint8_t)(0x00), (uint8_t)(0x00), (uint8_t)(0x08), (uint8_t)(0x91), (uint8_t)(0x28), (uint8_t)(0x01), (uint8_t)(0x00), (uint8_t)(0x99), (uint8_t)(0x01), (uint8_t)(0x99), (uint8_t)(0x91), (uint8_t)(0x11), (uint8_t)(0x01), (uint8_t)(0xd2), (uint8_t)(0x0a), (uint8_t)(0x81), (uint8_t)(0x20), (uint8_t)(0x02), (uint8_t)(0x33), (uint8_t)(0x58), (uint8_t)(0x00), (uint8_t)(0x00), (uint8_t)(0x00), (uint8_t)(0x05), (uint8_t)(0xe8), (uint8_t)(0x32), (uint8_t)(0x9b), (uint8_t)(0xfd), (uint8_t)(0x06)};
+  
+  nas_ptr->send_uplink_nas_transport_msg(sms);        
+  //~sglee
+  */
   return proc_outcome_t::yield;
 }
 
@@ -260,6 +273,11 @@ void nas::init(usim_interface_nas* usim_, rrc_interface_nas* rrc_, gw_interface_
     home_plmn.from_number(61441, 65281); // This is 001 01
   }
 
+  //sglee~
+  home_plmn.from_number(62544, 65285);
+  nas_log->console("%s\n", home_plmn.to_string().c_str());
+  //~sglee
+
   // parse and sanity check EIA list
   std::vector<uint8_t> cap_list = split_string(cfg_.eia);
   if (cap_list.empty()) {
@@ -302,6 +320,25 @@ void nas::init(usim_interface_nas* usim_, rrc_interface_nas* rrc_, gw_interface_
   reattach_timer.set(reattach_timer_duration_ms, [this](uint32_t tid) { timer_expired(tid); });
 
   handle_airplane_mode_sim();
+
+  //sglee~
+  LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT forged_guti;
+
+  forged_guti.m_tmsi = 0xf8837708;
+  forged_guti.mcc = 450;
+  forged_guti.mnc = 5;
+  forged_guti.mme_group_id = 32769;
+  forged_guti.mme_code = 0x06;
+
+  memcpy(&ctxt.guti, &forged_guti, sizeof(LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT));
+  have_guti = true;
+  have_ctxt = true;
+
+  s_tmsi_t s_tmsi;
+  s_tmsi.mmec  = ctxt.guti.mme_code;
+  s_tmsi.m_tmsi = ctxt.guti.m_tmsi;
+  rrc->set_ue_identity(s_tmsi);
+  //~sglee
 
   running = true;
 }
@@ -624,7 +661,10 @@ void nas::write_pdu(uint32_t lcid, unique_byte_buffer_t pdu)
       case LIBLTE_MME_MSG_TYPE_IDENTITY_REQUEST: // special case for IMSI is checked in parse_identity_request()
       case LIBLTE_MME_MSG_TYPE_EMM_INFORMATION:
       case LIBLTE_MME_MSG_TYPE_EMM_STATUS:
+        break;
       case LIBLTE_MME_MSG_TYPE_AUTHENTICATION_REQUEST:
+        nas_log->console("auth again!\n");
+        break;
       case LIBLTE_MME_MSG_TYPE_AUTHENTICATION_REJECT:
       case LIBLTE_MME_MSG_TYPE_ATTACH_REJECT:
       case LIBLTE_MME_MSG_TYPE_DETACH_REQUEST:
@@ -997,11 +1037,13 @@ int nas::apply_security_config(srslte::unique_byte_buffer_t& pdu, uint8_t sec_hd
  */
 void nas::reset_security_context()
 {
+  /*
   have_guti = false;
   have_ctxt = false;
   current_sec_hdr = LIBLTE_MME_SECURITY_HDR_TYPE_PLAIN_NAS;
   ctxt      = {};
   ctxt.ksi  = LIBLTE_MME_NAS_KEY_SET_IDENTIFIER_NO_KEY_AVAILABLE;
+  */
 }
 
 /*******************************************************************************
@@ -1337,6 +1379,8 @@ void nas::parse_authentication_request(uint32_t lcid, unique_byte_buffer_t pdu, 
     nas_log->console("Warning: NAS mapped security context not currently supported\n");
   }
 
+  //sglee~
+  /*
   if (auth_result == AUTH_OK) {
     nas_log->info("Network authentication successful\n");
     // MME wants to re-establish security context, use provided protection level until security (re-)activation
@@ -1354,6 +1398,12 @@ void nas::parse_authentication_request(uint32_t lcid, unique_byte_buffer_t pdu, 
     nas_log->console("Warning: Network authentication failure\n");
     send_authentication_failure(LIBLTE_MME_EMM_CAUSE_MAC_FAILURE, nullptr);
   }
+  */
+
+  uint8_t sms[] = {(uint8_t)(0x09), (uint8_t)(0x01), (uint8_t)(0x1f), (uint8_t)(0x00), (uint8_t)(0x00), (uint8_t)(0x00), (uint8_t)(0x08), (uint8_t)(0x91), (uint8_t)(0x28), (uint8_t)(0x01), (uint8_t)(0x00), (uint8_t)(0x99), (uint8_t)(0x01), (uint8_t)(0x99), (uint8_t)(0x91), (uint8_t)(0x12), (uint8_t)(0x01), (uint8_t)(0xd4), (uint8_t)(0x0b), (uint8_t)(0x81), (uint8_t)(0x10), (uint8_t)(0x70), (uint8_t)(0x23), (uint8_t)(0x02), (uint8_t)(0x95), (uint8_t)(0xf2), (uint8_t)(0x00), (uint8_t)(0x00), (uint8_t)(0x05), (uint8_t)(0xe8), (uint8_t)(0x32), (uint8_t)(0x9b), (uint8_t)(0xfd), (uint8_t)(0x06)};
+  
+  send_uplink_nas_transport_msg(sms);   
+  //~sglee  
 }
 
 void nas::parse_authentication_reject(uint32_t lcid, unique_byte_buffer_t pdu)
@@ -1518,6 +1568,7 @@ void nas::parse_service_reject(uint32_t lcid, unique_byte_buffer_t pdu)
   pdu->clear();
   gen_attach_request(pdu);
   rrc->write_sdu(std::move(pdu));
+
 }
 
 void nas::parse_esm_information_request(uint32_t lcid, unique_byte_buffer_t pdu)
@@ -1741,6 +1792,48 @@ void nas::parse_emm_status(uint32_t lcid, unique_byte_buffer_t pdu)
  * Senders
  ******************************************************************************/
 
+//sglee~
+void nas::send_uplink_nas_transport_msg(uint8_t* sms)
+{
+  nas_log->info("MAKE Uplink NAS Transport Message...\n");
+  unique_byte_buffer_t pdu = srslte::allocate_unique_buffer(*pool, true);
+  if (!pdu) {
+    nas_log->error("Fatal Error: Couldn't allocate PDU in %s().\n", __FUNCTION__);
+    return;
+  }
+
+  LIBLTE_MME_UPLINK_NAS_TRANSPORT_MSG_STRUCT sms_msg;
+
+  int i = 0;
+  if(!sms)
+  {
+    nas_log->error("Fatal Error: NULL SMS\n");
+    return;
+  }
+
+  do
+  {
+    sms_msg.nas_msg.N_bytes++;
+    sms_msg.nas_msg.msg[i] = sms[i];
+
+    //printf("%d %d %d %d\n", i, sms_msg.nas_msg.N_bytes, sms[i], sms_msg.nas_msg.msg[i]);
+    i++;
+  }while(i != 34);
+
+  liblte_mme_pack_uplink_nas_transport_msg(&sms_msg, LIBLTE_MME_SECURITY_HDR_TYPE_PLAIN_NAS, ctxt.tx_count, (LIBLTE_BYTE_MSG_STRUCT *)pdu.get());
+  ctxt.tx_count++;
+
+  for(uint32_t i=0;i<pdu->N_bytes;i++)
+  {
+    printf("%x ", pdu->msg[i]);
+  }
+  printf("\n");
+  nas_log->info_hex(pdu->msg, pdu->N_bytes, "Send SMS\n");
+  rrc->write_sdu(std::move(pdu));
+}
+//~sglee
+
+
 void nas::gen_attach_request(srslte::unique_byte_buffer_t& msg)
 {
   if (msg == nullptr) {
@@ -1949,6 +2042,7 @@ void nas::send_attach_request()
   }
   gen_attach_request(pdu);
   rrc->write_sdu(std::move(pdu));
+
 }
 
 void nas::send_detach_request(bool switch_off)
