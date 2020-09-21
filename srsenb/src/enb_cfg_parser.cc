@@ -1459,8 +1459,8 @@ int parse_sib12(std::string filename, sib_type12_r9_s* data)
   std::cout<<"Coding : "<<coding_enabled<<" "<<data_coding_scheme<<std::endl;
   if (!parser::parse_section(filename, &sib12)) {
     if(warning_enabled) {
-     // std::string page_num(1, 0x01);
-      //warning_msg_segment = page_num + warning_msg_segment;
+      std::string page_num(1, 0x01);
+      warning_msg_segment = page_num + warning_msg_segment;
 
       data->warning_msg_segment_r9.resize(SRSLTE_MIN((uint32_t)warning_msg_segment.size(), 48));
       memcpy(data->warning_msg_segment_r9.data(), warning_msg_segment.c_str(), data->warning_msg_segment_r9.size());

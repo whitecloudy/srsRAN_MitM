@@ -8086,7 +8086,8 @@ struct sib_type1_v8h0_ies_s {
 
 // SystemInformationBlockType1-v920-IEs ::= SEQUENCE
 struct sib_type1_v920_ies_s {
-  bool                  ims_emergency_support_r9_present = false;
+	//MODIFIED
+  bool                  ims_emergency_support_r9_present = true;
   bool                  cell_sel_info_v920_present       = false;
   bool                  non_crit_ext_present             = false;
   cell_sel_info_v920_s  cell_sel_info_v920;

@@ -482,20 +482,22 @@ bool rrc::is_paging_opportunity(uint32_t tti, uint32_t* payload_len)
 {
   constexpr static int sf_pattern[4][4] = {{9, 4, -1, 0}, {-1, 9, -1, 4}, {-1, -1, -1, 5}, {-1, -1, -1, 9}};
  
-  /* 
   //sglee~
+  //Targeting UE
+  /*
   paging_record_s paging_elem;
   paging_elem.ue_id.set_s_tmsi();
-  uint8_t mmec =0x11;
+  uint8_t mmec =0x02;
   paging_elem.ue_id.s_tmsi().mmec.from_number(mmec);
-  uint32_t m_tmsi = 0xd0215dee;
+  uint32_t m_tmsi = 0xc8837bbf;
   paging_elem.ue_id.s_tmsi().m_tmsi.from_number(m_tmsi);
   paging_elem.cn_domain = paging_record_s::cn_domain_e_::ps;
   pending_paging.insert(std::make_pair(450050991911162, paging_elem));
-  */ 
+  */
   nof_si_messages = generate_sibs();
   //~sglee
   
+  // Targeting UE
   /*
   if (pending_paging.empty()) {
     return false;
@@ -861,11 +863,11 @@ uint32_t rrc::generate_sibs()
       }
 
       // Add other SIBs to this message, if any
-    if((int)(sglee / 200) % 2 == 1)
-      for (auto& mapping_enum : sched_info[sched_info_elem].sib_map_info) {
-        sib_list.push_back(cfg.sibs[(int)mapping_enum + 2]);
+      if((int)(sglee / 200) % 2 == 1) {
+        for (auto& mapping_enum : sched_info[sched_info_elem].sib_map_info) {
+          sib_list.push_back(cfg.sibs[(int)mapping_enum + 2]);
+        }
       }
-
     }
 
     // Pack payload for all messages
