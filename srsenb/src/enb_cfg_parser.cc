@@ -1473,7 +1473,7 @@ int parse_sib12(std::string filename, sib_type12_r9_s* data)
 
       data->data_coding_scheme_r9.from_string(data_coding_scheme);
       data->data_coding_scheme_r9_present = true;
-      // data->ext = true;
+      data->ext = true;
     }
 
     std::cout << "warning_msg_segment_r9: " << warning_msg_segment << std::endl;
