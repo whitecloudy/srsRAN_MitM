@@ -1467,15 +1467,18 @@ int parse_sib12(std::string filename, sib_type12_r9_s* data)
     
     }
     if(coding_enabled) {
-	    if(data_coding_scheme.size() > 48) {
-		    data_coding_scheme.resize(48);
-	    }
-           data->data_coding_scheme_r9.from_string(data_coding_scheme);
-           data->data_coding_scheme_r9_present = true;
+      if(data_coding_scheme.size() > 48) {
+        data_coding_scheme.resize(48);
+      }
+
+      data->data_coding_scheme_r9.from_string(data_coding_scheme);
+      data->data_coding_scheme_r9_present = true;
+      // data->ext = true;
     }
 
     std::cout << "warning_msg_segment_r9: " << warning_msg_segment << std::endl;
-    std::cout << "data_coding_scheme_r9: " << data_coding_scheme << std::endl;
+    std::cout << "data_coding_scheme_r9: " << data->data_coding_scheme_r9.to_string() << std::endl;
+
     return 0;
   } else {
     return -1;
