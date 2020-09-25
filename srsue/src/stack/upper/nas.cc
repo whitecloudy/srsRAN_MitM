@@ -1853,6 +1853,21 @@ void nas::gen_service_request(srslte::unique_byte_buffer_t& msg)
 
   nas_log->info("Generating service request\n");
 
+  //SJM : Make forged service request
+  msg->N_bytes++;
+  msg->msg[0] = 0xc7; //Security header, Protocol discriminator
+  msg->N_bytes++;
+  msg->msg[1] = 0xd4; //KSI and sequnce
+  msg->N_bytes++;
+
+  //short MAC
+  msg->msg[2] = 0x0a;
+  msg->N_bytes++;
+  msg->msg[3] = 0x7c;
+
+
+
+  /*
   // Pack the service request message directly
   msg->msg[0] = (LIBLTE_MME_SECURITY_HDR_TYPE_SERVICE_REQUEST << 4u) | (LIBLTE_MME_PD_EPS_MOBILITY_MANAGEMENT);
   msg->N_bytes++;
@@ -1869,10 +1884,11 @@ void nas::gen_service_request(srslte::unique_byte_buffer_t& msg)
   msg->N_bytes++;
 
   if (pcap != nullptr) {
-    pcap->write_nas(msg->msg, msg->N_bytes);
+  pcap->write_nas(msg->msg, msg->N_bytes);
   }
   set_k_enb_count(ctxt.tx_count);
   ctxt.tx_count++;
+  */
 }
 
 void nas::gen_pdn_connectivity_request(LIBLTE_BYTE_MSG_STRUCT* msg)
@@ -2032,7 +2048,7 @@ void nas::send_attach_complete(const uint8_t& transaction_id_, const uint8_t& ep
   act_def_eps_bearer_context_accept.proc_transaction_id                                              = transaction_id_;
   act_def_eps_bearer_context_accept.protocol_cnfg_opts_present                                       = false;
   liblte_mme_pack_activate_default_eps_bearer_context_accept_msg(&act_def_eps_bearer_context_accept,
-                                                                 &attach_complete.esm_msg);
+      &attach_complete.esm_msg);
 
   // Pack entire message
   unique_byte_buffer_t pdu = srslte::allocate_unique_buffer(*pool, true);
@@ -2239,7 +2255,7 @@ void nas::send_esm_information_response(const uint8 proc_transaction_id)
 
     // Generate CHAP challenge
     uint16_t len = 1 /* CHAP code */ + 1 /* ID */ + 2 /* complete length */ + 1 /* data value size */ +
-                   16 /* data value */ + cfg.apn_user.length();
+      16 /* data value */ + cfg.apn_user.length();
 
     uint8_t challenge[len];
     bzero(challenge, len * sizeof(uint8_t));
@@ -2314,7 +2330,7 @@ void nas::send_esm_information_response(const uint8 proc_transaction_id)
   }
 
   if (liblte_mme_pack_esm_information_response_msg(
-          &esm_info_resp, current_sec_hdr, ctxt.tx_count, (LIBLTE_BYTE_MSG_STRUCT*)pdu.get()) != LIBLTE_SUCCESS) {
+        &esm_info_resp, current_sec_hdr, ctxt.tx_count, (LIBLTE_BYTE_MSG_STRUCT*)pdu.get()) != LIBLTE_SUCCESS) {
     nas_log->error("Error packing ESM information response.\n");
     return;
   }
@@ -2336,7 +2352,7 @@ void nas::send_esm_information_response(const uint8 proc_transaction_id)
 }
 
 void nas::send_activate_dedicated_eps_bearer_context_accept(const uint8_t& proc_transaction_id,
-                                                            const uint8_t& eps_bearer_id)
+    const uint8_t& eps_bearer_id)
 {
   unique_byte_buffer_t pdu = srslte::allocate_unique_buffer(*pool, true);
 
@@ -2346,7 +2362,7 @@ void nas::send_activate_dedicated_eps_bearer_context_accept(const uint8_t& proc_
   accept.proc_transaction_id = proc_transaction_id;
 
   if (liblte_mme_pack_activate_dedicated_eps_bearer_context_accept_msg(
-          &accept, current_sec_hdr, ctxt.tx_count, (LIBLTE_BYTE_MSG_STRUCT*)pdu.get()) != LIBLTE_SUCCESS) {
+        &accept, current_sec_hdr, ctxt.tx_count, (LIBLTE_BYTE_MSG_STRUCT*)pdu.get()) != LIBLTE_SUCCESS) {
     nas_log->error("Error packing Activate Dedicated EPS Bearer context accept.\n");
     return;
   }
@@ -2361,10 +2377,10 @@ void nas::send_activate_dedicated_eps_bearer_context_accept(const uint8_t& proc_
   }
 
   nas_log->info_hex(pdu->msg,
-                    pdu->N_bytes,
-                    "Sending Activate Dedicated EPS Bearer context accept (eps_bearer_id=%d, proc_id=%d)\n",
-                    accept.eps_bearer_id,
-                    accept.proc_transaction_id);
+      pdu->N_bytes,
+      "Sending Activate Dedicated EPS Bearer context accept (eps_bearer_id=%d, proc_id=%d)\n",
+      accept.eps_bearer_id,
+      accept.proc_transaction_id);
   rrc->write_sdu(std::move(pdu));
 
   ctxt.tx_count++;
@@ -2380,7 +2396,7 @@ void nas::send_deactivate_eps_bearer_context_accept(const uint8_t& proc_transact
   accept.proc_transaction_id = proc_transaction_id;
 
   if (liblte_mme_pack_deactivate_eps_bearer_context_accept_msg(
-          &accept, current_sec_hdr, ctxt.tx_count, (LIBLTE_BYTE_MSG_STRUCT*)pdu.get()) != LIBLTE_SUCCESS) {
+        &accept, current_sec_hdr, ctxt.tx_count, (LIBLTE_BYTE_MSG_STRUCT*)pdu.get()) != LIBLTE_SUCCESS) {
     nas_log->error("Error packing Activate EPS Bearer context accept.\n");
     return;
   }
@@ -2395,10 +2411,10 @@ void nas::send_deactivate_eps_bearer_context_accept(const uint8_t& proc_transact
   }
 
   nas_log->info_hex(pdu->msg,
-                    pdu->N_bytes,
-                    "Sending Deactivate EPS Bearer context accept (eps_bearer_id=%d, proc_id=%d)\n",
-                    accept.eps_bearer_id,
-                    accept.proc_transaction_id);
+      pdu->N_bytes,
+      "Sending Deactivate EPS Bearer context accept (eps_bearer_id=%d, proc_id=%d)\n",
+      accept.eps_bearer_id,
+      accept.proc_transaction_id);
   rrc->write_sdu(std::move(pdu));
 
   ctxt.tx_count++;
@@ -2414,7 +2430,7 @@ void nas::send_modify_eps_bearer_context_accept(const uint8_t& proc_transaction_
   accept.proc_transaction_id = proc_transaction_id;
 
   if (liblte_mme_pack_modify_eps_bearer_context_accept_msg(
-          &accept, current_sec_hdr, ctxt.tx_count, (LIBLTE_BYTE_MSG_STRUCT*)pdu.get()) != LIBLTE_SUCCESS) {
+        &accept, current_sec_hdr, ctxt.tx_count, (LIBLTE_BYTE_MSG_STRUCT*)pdu.get()) != LIBLTE_SUCCESS) {
     nas_log->error("Error packing Modify EPS Bearer context accept.\n");
     return;
   }
@@ -2429,10 +2445,10 @@ void nas::send_modify_eps_bearer_context_accept(const uint8_t& proc_transaction_
   }
 
   nas_log->info_hex(pdu->msg,
-                    pdu->N_bytes,
-                    "Sending Modify EPS Bearer context accept (eps_bearer_id=%d, proc_id=%d)\n",
-                    accept.eps_bearer_id,
-                    accept.proc_transaction_id);
+      pdu->N_bytes,
+      "Sending Modify EPS Bearer context accept (eps_bearer_id=%d, proc_id=%d)\n",
+      accept.eps_bearer_id,
+      accept.proc_transaction_id);
   rrc->write_sdu(std::move(pdu));
 
   ctxt.tx_count++;
@@ -2443,7 +2459,7 @@ void nas::send_activate_test_mode_complete()
   unique_byte_buffer_t pdu = srslte::allocate_unique_buffer(*pool, true);
 
   if (liblte_mme_pack_activate_test_mode_complete_msg(
-          (LIBLTE_BYTE_MSG_STRUCT*)pdu.get(), current_sec_hdr, ctxt.tx_count)) {
+        (LIBLTE_BYTE_MSG_STRUCT*)pdu.get(), current_sec_hdr, ctxt.tx_count)) {
     nas_log->error("Error packing activate test mode complete.\n");
     return;
   }
@@ -2468,7 +2484,7 @@ void nas::send_close_ue_test_loop_complete()
   unique_byte_buffer_t pdu = srslte::allocate_unique_buffer(*pool, true);
 
   if (liblte_mme_pack_close_ue_test_loop_complete_msg(
-          (LIBLTE_BYTE_MSG_STRUCT*)pdu.get(), current_sec_hdr, ctxt.tx_count)) {
+        (LIBLTE_BYTE_MSG_STRUCT*)pdu.get(), current_sec_hdr, ctxt.tx_count)) {
     nas_log->error("Error packing close UE test loop complete.\n");
     return;
   }
@@ -2499,20 +2515,20 @@ void nas::handle_airplane_mode_sim()
     if (state == EMM_STATE_REGISTERED) {
       // NAS is attached
       task_handler->defer_callback(cfg.sim.airplane_t_on_ms, [&]() {
-        // Enabling air-plane mode
-        send_detach_request(true);
-        airplane_mode_state = ENABLED;
-      });
+          // Enabling air-plane mode
+          send_detach_request(true);
+          airplane_mode_state = ENABLED;
+          });
     }
   } else if (cfg.sim.airplane_t_off_ms > 0 && airplane_mode_state == ENABLED) {
     // check if we are already deregistered, if so, schedule command to turn off airplone mode again
     if (state == EMM_STATE_DEREGISTERED) {
       // NAS is deregistered
       task_handler->defer_callback(cfg.sim.airplane_t_off_ms, [&]() {
-        // Disabling airplane mode again
-        start_attach_proc(nullptr, srslte::establishment_cause_t::mo_sig);
-        airplane_mode_state = DISABLED;
-      });
+          // Disabling airplane mode again
+          start_attach_proc(nullptr, srslte::establishment_cause_t::mo_sig);
+          airplane_mode_state = DISABLED;
+          });
     }
   }
 
@@ -2577,20 +2593,20 @@ bool nas::read_ctxt_file(nas_sec_ctxt* ctxt_)
 
     file.close();
     nas_log->info("Read GUTI from file "
-                  "m_tmsi: %x, mcc: %x, mnc: %x, mme_group_id: %x, mme_code: %x\n",
-                  ctxt_->guti.m_tmsi,
-                  ctxt_->guti.mcc,
-                  ctxt_->guti.mnc,
-                  ctxt_->guti.mme_group_id,
-                  ctxt_->guti.mme_code);
+        "m_tmsi: %x, mcc: %x, mnc: %x, mme_group_id: %x, mme_code: %x\n",
+        ctxt_->guti.m_tmsi,
+        ctxt_->guti.mcc,
+        ctxt_->guti.mnc,
+        ctxt_->guti.mme_group_id,
+        ctxt_->guti.mme_code);
     nas_log->info("Read security ctxt from file .ctxt. "
-                  "ksi: %x, k_asme: %s, tx_count: %x, rx_count: %x, int_alg: %d, enc_alg: %d\n",
-                  ctxt_->ksi,
-                  hex_to_string(ctxt_->k_asme, 32).c_str(),
-                  ctxt_->tx_count,
-                  ctxt_->rx_count,
-                  ctxt_->integ_algo,
-                  ctxt_->cipher_algo);
+        "ksi: %x, k_asme: %s, tx_count: %x, rx_count: %x, int_alg: %d, enc_alg: %d\n",
+        ctxt_->ksi,
+        hex_to_string(ctxt_->k_asme, 32).c_str(),
+        ctxt_->tx_count,
+        ctxt_->rx_count,
+        ctxt_->integ_algo,
+        ctxt_->cipher_algo);
 
     have_guti       = true;
     have_ctxt       = true;
@@ -2623,20 +2639,20 @@ bool nas::write_ctxt_file(nas_sec_ctxt ctxt_)
     file << "k_asme=" << hex_to_string(ctxt_.k_asme, 32) << std::endl;
 
     nas_log->info("Saved GUTI to file "
-                  "m_tmsi: %x, mcc: %x, mnc: %x, mme_group_id: %x, mme_code: %x\n",
-                  ctxt_.guti.m_tmsi,
-                  ctxt_.guti.mcc,
-                  ctxt_.guti.mnc,
-                  ctxt_.guti.mme_group_id,
-                  ctxt_.guti.mme_code);
+        "m_tmsi: %x, mcc: %x, mnc: %x, mme_group_id: %x, mme_code: %x\n",
+        ctxt_.guti.m_tmsi,
+        ctxt_.guti.mcc,
+        ctxt_.guti.mnc,
+        ctxt_.guti.mme_group_id,
+        ctxt_.guti.mme_code);
     nas_log->info("Saved security ctxt to file .ctxt. "
-                  "ksi: %x, k_asme: %s, tx_count: %x, rx_count: %x, int_alg: %d, enc_alg: %d\n",
-                  ctxt_.ksi,
-                  hex_to_string(ctxt_.k_asme, 32).c_str(),
-                  ctxt_.tx_count,
-                  ctxt_.rx_count,
-                  ctxt_.integ_algo,
-                  ctxt_.cipher_algo);
+        "ksi: %x, k_asme: %s, tx_count: %x, rx_count: %x, int_alg: %d, enc_alg: %d\n",
+        ctxt_.ksi,
+        hex_to_string(ctxt_.k_asme, 32).c_str(),
+        ctxt_.tx_count,
+        ctxt_.rx_count,
+        ctxt_.integ_algo,
+        ctxt_.cipher_algo);
     file.close();
     return true;
   }
