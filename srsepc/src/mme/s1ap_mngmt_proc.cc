@@ -69,6 +69,7 @@ void s1ap_mngmt_proc::init(void)
 bool s1ap_mngmt_proc::handle_s1_setup_request(const asn1::s1ap::s1_setup_request_s& msg,
                                               struct sctp_sndrcvinfo*               enb_sri)
 {
+  m_s1ap_log->console("%ld\n", clock());
   m_s1ap_log->console("Received S1 Setup Request.\n");
   m_s1ap_log->info("Received S1 Setup Request.\n");
 

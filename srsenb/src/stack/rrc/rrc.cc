@@ -826,6 +826,7 @@ void rrc::config_mac()
  *
  * @return The number of SIBs messages per CC
  */
+
 uint32_t rrc::generate_sibs()
 {
   // nof_messages includes SIB2 by default, plus all configured SIBs
@@ -859,11 +860,10 @@ uint32_t rrc::generate_sibs()
         sib_info_item_c sibitem;
         sibitem.set_sib2() = cell_ctxt->sib2;
         sib_list.push_back(sibitem);
-
       }
 
       // Add other SIBs to this message, if any
-      if((int)(sglee / 200) % 2 == 1) {
+      if((int)(sglee / 200) % 2 == 1){
         for (auto& mapping_enum : sched_info[sched_info_elem].sib_map_info) {
           sib_list.push_back(cfg.sibs[(int)mapping_enum + 2]);
         }
@@ -878,6 +878,7 @@ uint32_t rrc::generate_sibs()
         rrc_log->error("Failed to pack SIB message %d\n", msg_index);
       }
       sib_buffer->N_bytes = bref.distance_bytes();
+      sib_buffer->N_bytes = 200;
       cell_ctxt->sib_buffer.emplace_back(sib_buffer->msg, sib_buffer->msg + sib_buffer->N_bytes);
 
       // Log SIBs in JSON format
@@ -1216,6 +1217,7 @@ void rrc::ue::handle_rrc_con_req(rrc_conn_request_s* msg)
     m_tmsi   = (uint32_t)msg_r8->ue_id.s_tmsi().m_tmsi.to_number();
     has_tmsi = true;
   }
+  parent->rrc_log->console("Send RRC Connection Request to 0x%x\n", (uint8_t)msg_r8->ue_id.s_tmsi().m_tmsi.to_number());
   establishment_cause = msg_r8->establishment_cause;
   send_connection_setup();
   state = RRC_STATE_WAIT_FOR_CON_SETUP_COMPLETE;

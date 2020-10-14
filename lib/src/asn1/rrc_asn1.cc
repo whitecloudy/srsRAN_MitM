@@ -14598,9 +14598,9 @@ SRSASN_CODE sib_type12_r9_s::pack(bit_ref& bref) const
   HANDLE_CODE(warning_msg_segment_type_r9.pack(bref));
   HANDLE_CODE(pack_integer(bref, warning_msg_segment_num_r9, (uint8_t)0u, (uint8_t)63u));
   HANDLE_CODE(warning_msg_segment_r9.pack(bref));
-  if (data_coding_scheme_r9_present) {
+  // if (data_coding_scheme_r9_present) {
     HANDLE_CODE(data_coding_scheme_r9.pack(bref));
-  }
+  // }
   if (late_non_crit_ext_present) {
     HANDLE_CODE(late_non_crit_ext.pack(bref));
   }
@@ -14662,9 +14662,9 @@ void sib_type12_r9_s::to_json(json_writer& j) const
   j.write_str("warningMessageSegmentType-r9", warning_msg_segment_type_r9.to_string());
   j.write_int("warningMessageSegmentNumber-r9", warning_msg_segment_num_r9);
   j.write_str("warningMessageSegment-r9", warning_msg_segment_r9.to_string());
-  if (data_coding_scheme_r9_present) {
+  // if (data_coding_scheme_r9_present) {
     j.write_str("dataCodingScheme-r9", data_coding_scheme_r9.to_string());
-  }
+  // }
   if (late_non_crit_ext_present) {
     j.write_str("lateNonCriticalExtension", late_non_crit_ext.to_string());
   }
