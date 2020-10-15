@@ -778,6 +778,7 @@ bool nas::handle_tracking_area_update_request(uint32_t                m_tmsi,
 {
   srslte::byte_buffer_pool* pool = srslte::byte_buffer_pool::get_instance();
 
+  nas_log->console("%ld\n", clock());
   nas_log->info("Tracking Area Update Request -- S-TMSI 0x%x\n", m_tmsi);
   nas_log->console("Tracking Area Update Request -- S-TMSI 0x%x\n", m_tmsi);
   nas_log->info("Tracking Area Update Request -- eNB UE S1AP Id %d\n", enb_ue_s1ap_id);

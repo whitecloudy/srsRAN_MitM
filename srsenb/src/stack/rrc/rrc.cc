@@ -482,20 +482,22 @@ bool rrc::is_paging_opportunity(uint32_t tti, uint32_t* payload_len)
 {
   constexpr static int sf_pattern[4][4] = {{9, 4, -1, 0}, {-1, 9, -1, 4}, {-1, -1, -1, 5}, {-1, -1, -1, 9}};
  
-  /* 
   //sglee~
+  //Targeting UE
+  /*
   paging_record_s paging_elem;
   paging_elem.ue_id.set_s_tmsi();
-  uint8_t mmec =0x11;
+  uint8_t mmec =0x02;
   paging_elem.ue_id.s_tmsi().mmec.from_number(mmec);
-  uint32_t m_tmsi = 0xd0215dee;
+  uint32_t m_tmsi = 0xc8837bbf;
   paging_elem.ue_id.s_tmsi().m_tmsi.from_number(m_tmsi);
   paging_elem.cn_domain = paging_record_s::cn_domain_e_::ps;
   pending_paging.insert(std::make_pair(450050991911162, paging_elem));
-  */ 
+  */
   nof_si_messages = generate_sibs();
   //~sglee
   
+  // Targeting UE
   /*
   if (pending_paging.empty()) {
     return false;
@@ -824,6 +826,7 @@ void rrc::config_mac()
  *
  * @return The number of SIBs messages per CC
  */
+
 uint32_t rrc::generate_sibs()
 {
   // nof_messages includes SIB2 by default, plus all configured SIBs
@@ -857,15 +860,14 @@ uint32_t rrc::generate_sibs()
         sib_info_item_c sibitem;
         sibitem.set_sib2() = cell_ctxt->sib2;
         sib_list.push_back(sibitem);
-
       }
 
       // Add other SIBs to this message, if any
-    if((int)(sglee / 200) % 2 == 1)
-      for (auto& mapping_enum : sched_info[sched_info_elem].sib_map_info) {
-        sib_list.push_back(cfg.sibs[(int)mapping_enum + 2]);
+      if((int)(sglee / 200) % 2 == 1){
+        for (auto& mapping_enum : sched_info[sched_info_elem].sib_map_info) {
+          sib_list.push_back(cfg.sibs[(int)mapping_enum + 2]);
+        }
       }
-
     }
 
     // Pack payload for all messages
@@ -876,6 +878,7 @@ uint32_t rrc::generate_sibs()
         rrc_log->error("Failed to pack SIB message %d\n", msg_index);
       }
       sib_buffer->N_bytes = bref.distance_bytes();
+      sib_buffer->N_bytes = 200;
       cell_ctxt->sib_buffer.emplace_back(sib_buffer->msg, sib_buffer->msg + sib_buffer->N_bytes);
 
       // Log SIBs in JSON format
@@ -1214,6 +1217,7 @@ void rrc::ue::handle_rrc_con_req(rrc_conn_request_s* msg)
     m_tmsi   = (uint32_t)msg_r8->ue_id.s_tmsi().m_tmsi.to_number();
     has_tmsi = true;
   }
+  parent->rrc_log->console("Send RRC Connection Request to 0x%x\n", (uint8_t)msg_r8->ue_id.s_tmsi().m_tmsi.to_number());
   establishment_cause = msg_r8->establishment_cause;
   send_connection_setup();
   state = RRC_STATE_WAIT_FOR_CON_SETUP_COMPLETE;
