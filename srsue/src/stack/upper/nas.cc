@@ -158,7 +158,9 @@ proc_outcome_t nas::rrc_connect_proc::init(srslte::establishment_cause_t cause_,
     if (nas_ptr->state == EMM_STATE_REGISTERED) {
       nas_ptr->gen_service_request(pdu);
     } else {
-      nas_ptr->gen_attach_request(pdu);
+      //SJM : we force srsue to send service request
+      nas_ptr->gen_service_request(pdu);
+      //nas_ptr->gen_attach_request(pdu);
     }
   }
 
@@ -312,11 +314,11 @@ void nas::init(usim_interface_nas* usim_, rrc_interface_nas* rrc_, gw_interface_
   
   LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT forged_guti;
 
-  forged_guti.m_tmsi = 0xdc4401ae;
+  forged_guti.m_tmsi = 0xd3d802e9;
   forged_guti.mcc = 450;
   forged_guti.mnc = 5;
-  forged_guti.mme_group_id = 32913;
-  forged_guti.mme_code = 0x71;
+  forged_guti.mme_group_id = 0x8001;
+  forged_guti.mme_code = 0x17;
 
   memcpy(&ctxt.guti, &forged_guti, sizeof(LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT));
   have_guti = true;
@@ -676,53 +678,73 @@ void nas::write_pdu(uint32_t lcid, unique_byte_buffer_t pdu)
     return;
   }
 
+  //SJM : LOG what kind of message received
+  nas_log->info("SJM : \n");
+
   switch (msg_type) {
     case LIBLTE_MME_MSG_TYPE_ATTACH_ACCEPT:
+      nas_log->info("Received ATTACH ACCEPT\n");
       parse_attach_accept(lcid, std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_ATTACH_REJECT:
+      nas_log->info("Received ATTACH REJECT\n");
       parse_attach_reject(lcid, std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_AUTHENTICATION_REQUEST:
+      nas_log->info("Received AUTH REQUEST\n");
       parse_authentication_request(lcid, std::move(pdu), sec_hdr_type);
       break;
     case LIBLTE_MME_MSG_TYPE_AUTHENTICATION_REJECT:
+      nas_log->info("Received AUTH REJECT\n");
       parse_authentication_reject(lcid, std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_IDENTITY_REQUEST:
+      nas_log->info("Received ID REQUEST\n");
       parse_identity_request(std::move(pdu), sec_hdr_type);
       break;
     case LIBLTE_MME_MSG_TYPE_SECURITY_MODE_COMMAND:
+      nas_log->info("Received SECURITY MODE CMD\n");
       parse_security_mode_command(lcid, std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_SERVICE_REJECT:
+      nas_log->info("Received SERVICE REJECT\n");
       parse_service_reject(lcid, std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_ESM_INFORMATION_REQUEST:
+      nas_log->info("Received ESM INFORMATION REQ\n");
       parse_esm_information_request(lcid, std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_EMM_INFORMATION:
+      nas_log->info("Received EMM INFO\n");
       parse_emm_information(lcid, std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_EMM_STATUS:
+      nas_log->info("Received EMM STAT\n");
       parse_emm_status(lcid, std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_DETACH_REQUEST:
+      nas_log->info("Received DETACH REQUEST\n");
       parse_detach_request(lcid, std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_ACTIVATE_DEDICATED_EPS_BEARER_CONTEXT_REQUEST:
+      nas_log->info("Received ACTIVATE DEDICATED_EPS_BEARER CONTEXT REQUEST\n");
       parse_activate_dedicated_eps_bearer_context_request(lcid, std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_DEACTIVATE_EPS_BEARER_CONTEXT_REQUEST:
+      nas_log->info("Received DEACTIVATE DEDICATED_EPS_BEARER CONTEXT REQUEST\n");
       parse_deactivate_eps_bearer_context_request(std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_MODIFY_EPS_BEARER_CONTEXT_REQUEST:
+      nas_log->info("Received MODIFY EPS_BEARER CONTEXT REQUEST\n");
+
       parse_modify_eps_bearer_context_request(std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_ACTIVATE_TEST_MODE:
+      nas_log->info("Received ACTIVATE TEST MODE\n");
       parse_activate_test_mode(lcid, std::move(pdu));
       break;
     case LIBLTE_MME_MSG_TYPE_CLOSE_UE_TEST_LOOP:
+      nas_log->info("Received CLOSE UE TEST LOOP\n");
       parse_close_ue_test_loop(lcid, std::move(pdu));
       break;
     // TODO: Handle deactivate test mode and ue open test loop
@@ -1887,13 +1909,13 @@ void nas::gen_service_request(srslte::unique_byte_buffer_t& msg)
   msg->N_bytes++;
   msg->msg[0] = 0xc7; //Security header, Protocol discriminator
   msg->N_bytes++;
-  msg->msg[1] = 0xd4; //KSI and sequnce
+  msg->msg[1] = 0xd5; //KSI and sequnce
   msg->N_bytes++;
 
   //short MAC
-  msg->msg[2] = 0x0a;
+  msg->msg[2] = 0x72;
   msg->N_bytes++;
-  msg->msg[3] = 0x7c;
+  msg->msg[3] = 0xc0;
 
 
 

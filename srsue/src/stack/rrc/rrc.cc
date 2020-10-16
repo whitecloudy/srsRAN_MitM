@@ -884,7 +884,10 @@ void rrc::send_con_request(srslte::establishment_cause_t cause)
   }
   rrc_conn_req->establishment_cause = (establishment_cause_opts::options)cause;
 
-  send_ul_ccch_msg(ul_ccch_msg);
+  //SJM send forged ccch msg
+  uint8_t bits[6] = {0,0,0,0,0,0};
+  send_forged_ul_ccch_msg(bits, 6);
+  //send_ul_ccch_msg(ul_ccch_msg);
 }
 
 /* RRC connection re-establishment procedure (5.3.7.4) */
@@ -1793,14 +1796,70 @@ void rrc::send_ul_dcch_msg(uint32_t lcid, const ul_dcch_msg_s& msg)
 
   asn1::bit_ref bref(pdcp_buf->msg, pdcp_buf->get_tailroom());
   msg.pack(bref);
+
   bref.align_bytes_zero();
   pdcp_buf->N_bytes = (uint32_t)bref.distance_bytes(pdcp_buf->msg);
   pdcp_buf->set_timestamp();
 
+  //SJM : print bref
+  rrc_log->debug("Where is here????????????????????????? %d\n",pdcp_buf->N_bytes);
+  rrc_log->debug("Here it is %x %x\n",pdcp_buf->msg[0], pdcp_buf->msg[1]);
+
+                  // source                 dir     pdu         msg         msg_type
   log_rrc_message(get_rb_name(lcid).c_str(), Tx, pdcp_buf.get(), msg, msg.msg.c1().type().to_string());
 
   pdcp->write_sdu(lcid, std::move(pdcp_buf), true);
 }
+
+//SJM
+//send forged ul dcch msg
+void rrc::send_forged_ul_dcch_msg(uint32_t lcid, const uint8_t* byte_stream, uint32_t data_len)
+{
+  // Reset and reuse sdu buffer if provided
+  unique_byte_buffer_t pdcp_buf = srslte::allocate_unique_buffer(*pool, true);
+  if (not pdcp_buf.get()) {
+    rrc_log->error("Fatal Error: Couldn't allocate PDU in byte_align_and_pack().\n");
+    return;
+  }
+
+  memcpy(pdcp_buf->msg, byte_stream, data_len);
+  pdcp_buf->N_bytes = data_len;
+  pdcp_buf->set_timestamp();
+
+  pdcp->write_sdu(lcid, std::move(pdcp_buf), true);
+}
+
+//SJM
+void rrc::send_forged_ul_ccch_msg(const uint8_t* byte_stream, uint32_t data_len)
+{
+  // Reset and reuse sdu buffer if provided
+  unique_byte_buffer_t pdcp_buf = srslte::allocate_unique_buffer(*pool, true);
+  if (not pdcp_buf.get()) {
+    rrc_log->error("Fatal Error: Couldn't allocate PDU in byte_align_and_pack().\n");
+    return;
+  }
+
+  memcpy(pdcp_buf->msg, byte_stream, data_len);
+  pdcp_buf->N_bytes = data_len;
+  pdcp_buf->set_timestamp();
+
+  // Set UE contention resolution ID in MAC
+  uint64_t uecri      = 0;
+  uint8_t* ue_cri_ptr = (uint8_t*)&uecri;
+  uint32_t nbytes     = 6;
+  for (uint32_t i = 0; i < nbytes; i++) {
+    ue_cri_ptr[nbytes - i - 1] = pdcp_buf->msg[i];
+  }
+
+  rrc_log->debug("Setting UE contention resolution ID: %" PRIu64 "\n", uecri);
+  mac->set_contention_id(uecri);
+
+  uint32_t lcid = RB_ID_SRB0;
+
+  rlc->write_sdu(lcid, std::move(pdcp_buf));
+}
+
+
 
 void rrc::write_sdu(srslte::unique_byte_buffer_t sdu)
 {

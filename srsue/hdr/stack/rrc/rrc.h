@@ -385,6 +385,11 @@ private:
 
   void send_ul_ccch_msg(const asn1::rrc::ul_ccch_msg_s& msg);
   void send_ul_dcch_msg(uint32_t lcid, const asn1::rrc::ul_dcch_msg_s& msg);
+  
+  //SJM
+  //Send forged msg
+  void send_forged_ul_ccch_msg(const uint8_t* bytestream, uint32_t data_len);
+  void send_forged_ul_dcch_msg(uint32_t lcid, const uint8_t* byte_stream, uint32_t data_len);
 
   srslte::bit_buffer_t bit_buf;
 
