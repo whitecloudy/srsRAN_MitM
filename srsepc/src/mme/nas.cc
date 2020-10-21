@@ -1114,6 +1114,8 @@ bool nas::handle_identity_response(srslte::byte_buffer_t* nas_rx)
     m_nas_log->error("Error unpacking NAS identity response. Error: %s\n", liblte_error_text[err]);
     return false;
   }
+  //SJM
+  m_nas_log->info("SJM : Identity Response Received!\n");
 
   uint64_t imsi = 0;
   for (int i = 0; i <= 14; i++) {
@@ -1518,7 +1520,9 @@ bool nas::pack_identity_request(srslte::byte_buffer_t* nas_buffer)
   m_nas_log->info("Packing Identity Request\n");
 
   LIBLTE_MME_ID_REQUEST_MSG_STRUCT id_req;
-  id_req.id_type        = LIBLTE_MME_EPS_MOBILE_ID_TYPE_IMSI;
+  //SJM
+  //id_req.id_type        = LIBLTE_MME_EPS_MOBILE_ID_TYPE_IMSI;
+  id_req.id_type        = LIBLTE_MME_EPS_MOBILE_ID_TYPE_IMEI;
   LIBLTE_ERROR_ENUM err = liblte_mme_pack_identity_request_msg(&id_req, (LIBLTE_BYTE_MSG_STRUCT*)nas_buffer);
   if (err != LIBLTE_SUCCESS) {
     m_nas_log->error("Error packing Identity Request\n");
