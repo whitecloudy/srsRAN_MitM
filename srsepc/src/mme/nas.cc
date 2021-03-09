@@ -103,7 +103,7 @@ bool nas::handle_attach_request(uint32_t                enb_ue_s1ap_id,
     return false;
   }
 
-  // Get UE IMSI
+  // SJM : Get UE IMSI
   if (attach_req.eps_mobile_id.type_of_id == LIBLTE_MME_EPS_MOBILE_ID_TYPE_IMSI) {
     for (int i = 0; i <= 14; i++) {
       imsi += attach_req.eps_mobile_id.imsi[i] * std::pow(10, 14 - i);
