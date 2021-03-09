@@ -3218,7 +3218,19 @@ liblte_mme_unpack_tracking_area_update_reject_msg(LIBLTE_BYTE_MSG_STRUCT*       
 // Defines
 // Enums
 // Structs
+//
+// SJM : NOT implemented so I just added
+typedef struct {
+  LIBLTE_MME_NAS_KEY_SET_ID_STRUCT                         nas_ksi;
+  LIBLTE_MME_EPS_MOBILE_ID_STRUCT                          eps_mobile_id;
+  LIBLTE_MME_UE_NETWORK_CAPABILITY_STRUCT                  ue_network_cap;
+  uint8                                                    eps_attach_type;
+} LIBLTE_MME_TRACKING_AREA_UPDATE_REQUEST_MSG_STRUCT;
+
 // Functions
+LIBLTE_ERROR_ENUM liblte_mme_unpack_tracking_area_update_request_msg(LIBLTE_BYTE_MSG_STRUCT*               msg,
+                                                       LIBLTE_MME_TRACKING_AREA_UPDATE_REQUEST_MSG_STRUCT* tracking_area_update_req);
+
 // TODO
 
 /*********************************************************************
