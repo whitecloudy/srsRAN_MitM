@@ -151,6 +151,19 @@ bool s1ap_nas_transport::handle_uplink_nas_transport(const asn1::s1ap::ul_nas_tr
   bool     mac_valid           = false;
   bool     increase_ul_nas_cnt = true;
 
+  srslte::byte_buffer_t* nas_msg_tmp = m_pool->allocate();
+  memcpy(nas_msg_tmp->msg, ul_xport.protocol_ies.nas_pdu.value.data(), ul_xport.protocol_ies.nas_pdu.value.size());
+  nas_msg_tmp->N_bytes   = ul_xport.protocol_ies.nas_pdu.value.size();
+
+  for(unsigned int i = 0; i < nas_msg_tmp->N_bytes; i++)
+  {
+    m_s1ap_log->debug("%2x ", nas_msg_tmp->msg[i]);
+  }
+  m_s1ap_log->debug("\n");
+
+
+
+
   // Get UE NAS context
   nas* nas_ctx = m_s1ap->find_nas_ctx_from_mme_ue_s1ap_id(mme_ue_s1ap_id);
   if (nas_ctx == nullptr) {

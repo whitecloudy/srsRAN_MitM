@@ -312,11 +312,11 @@ void nas::init(usim_interface_nas* usim_, rrc_interface_nas* rrc_, gw_interface_
   
   LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT forged_guti;
 
-  forged_guti.m_tmsi = 0xdc4401ae;
+  forged_guti.m_tmsi = 0xd8647b0a;
   forged_guti.mcc = 450;
   forged_guti.mnc = 5;
-  forged_guti.mme_group_id = 32913;
-  forged_guti.mme_code = 0x71;
+  forged_guti.mme_group_id = 0x8001;
+  forged_guti.mme_code = 0x9;
 
   memcpy(&ctxt.guti, &forged_guti, sizeof(LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT));
   have_guti = true;
@@ -1360,22 +1360,33 @@ void nas::parse_authentication_request(uint32_t lcid, unique_byte_buffer_t pdu, 
   nas_log->debug_hex(auth_req.autn, 16, "Authentication request AUTN\n");
 
 
-  //SJM : Print Auth request data
-
-  nas_log->console("KSI : %x %x\n", auth_req.nas_ksi.tsc_flag, auth_req.nas_ksi.nas_ksi);
-  nas_log->console("Authentication request RAND\n");
-  for(int i = 0; i < 16; i++)
+  //SJM : Print and Save Auth request data
+  if(first_auth_flag)
   {
-    nas_log->console("%2x ",auth_req.rand[i]);
-  }
-  nas_log->console("\n");
+    first_auth_flag = false;
 
-  nas_log->console("Authentication request AUTN\n");
-  for(int i = 0; i < 16; i++)
-  {
-    nas_log->console("%2x ",auth_req.autn[i]);
+    std::ofstream randautn_file("randauth.txt", std::ofstream::out);
+    nas_log->console("KSI : %x %x\n", auth_req.nas_ksi.tsc_flag, auth_req.nas_ksi.nas_ksi);
+    randautn_file << (unsigned int)auth_req.nas_ksi.nas_ksi << std::endl;
+
+    nas_log->console("Authentication request RAND\n");
+    for(int i = 0; i < 16; i++)
+    {
+      nas_log->console("%2x ",auth_req.rand[i]);
+      randautn_file << (unsigned int)auth_req.rand[i] <<std::endl;
+    }
+    nas_log->console("\n");
+
+    nas_log->console("Authentication request AUTN\n");
+    for(int i = 0; i < 16; i++)
+    {
+      nas_log->console("%2x ",auth_req.autn[i]);
+      randautn_file << (unsigned int)auth_req.autn[i] <<std::endl;
+    }
+    nas_log->console("\n");
+
+    randautn_file.close();
   }
-  nas_log->console("\n");
 
 
   auth_result_t auth_result =

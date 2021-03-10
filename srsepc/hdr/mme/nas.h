@@ -249,6 +249,9 @@ public:
   bool pack_tracking_area_update_reject(srslte::byte_buffer_t* nas_buffer, uint8_t emm_cause);
   bool pack_attach_accept(srslte::byte_buffer_t* nas_buffer);
 
+  bool pack_false_authentication_request(srslte::byte_buffer_t* nas_buffer);
+
+
   /* Security functions */
   bool integrity_check(srslte::byte_buffer_t* pdu);
   bool short_integrity_check(srslte::byte_buffer_t* pdu);

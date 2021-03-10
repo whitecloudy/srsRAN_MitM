@@ -49,6 +49,8 @@ public:
   void        get_metrics(nas_metrics_t* m);
   emm_state_t get_state();
 
+  bool     first_auth_flag = true;
+
   // RRC interface
   void     left_rrc_connected() override;
   bool     paging(srslte::s_tmsi_t* ue_identity) override;
