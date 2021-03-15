@@ -312,11 +312,11 @@ void nas::init(usim_interface_nas* usim_, rrc_interface_nas* rrc_, gw_interface_
   
   LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT forged_guti;
 
-  forged_guti.m_tmsi = 0xd8647b0a;
+  forged_guti.m_tmsi = 0xf1440db9;
   forged_guti.mcc = 450;
   forged_guti.mnc = 5;
   forged_guti.mme_group_id = 0x8001;
-  forged_guti.mme_code = 0x9;
+  forged_guti.mme_code = 0x17;
 
   memcpy(&ctxt.guti, &forged_guti, sizeof(LIBLTE_MME_EPS_MOBILE_ID_GUTI_STRUCT));
   have_guti = true;

