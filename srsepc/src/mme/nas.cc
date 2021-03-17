@@ -25,6 +25,7 @@
 #include "srslte/common/security.h"
 #include <cmath>
 #include <inttypes.h> // for printing uint64_t
+#include <iostream>
 
 namespace srsepc {
 
@@ -1420,6 +1421,42 @@ bool nas::pack_security_mode_command(srslte::byte_buffer_t* nas_buffer)
   sm_cmd.selected_nas_sec_algs.type_of_eea = (LIBLTE_MME_TYPE_OF_CIPHERING_ALGORITHM_ENUM)m_sec_ctx.cipher_algo;
   sm_cmd.selected_nas_sec_algs.type_of_eia = (LIBLTE_MME_TYPE_OF_INTEGRITY_ALGORITHM_ENUM)m_sec_ctx.integ_algo;
 
+  // JJW_210315 : Use EEA0 & EIA0
+  // sm_cmd.selected_nas_sec_algs.type_of_eea = 0;
+  // sm_cmd.selected_nas_sec_algs.type_of_eia = 0;
+  
+  const char *EEA_Types[] = 
+  {
+	  "EEA0",
+	  "128_EEA1",
+	  "128_EEA2",
+	  "EEA3",
+	  "EEA4",
+	  "EEA5",
+	  "EEA6",
+	  "EEA7",
+	  "EEA_N_ITEMS"
+  };
+
+  const char *EIA_Types[] = 
+  {
+	  "EIA0",
+	  "128_EIA1",
+	  "128_EIA2",
+	  "EIA3",
+	  "EIA4",
+	  "EIA5",
+	  "EIA6",
+	  "EIA7",
+	  "EIA_N_ITEMS"
+  };
+
+  sm_cmd.selected_nas_sec_algs.type_of_eea = LIBLTE_MME_TYPE_OF_CIPHERING_ALGORITHM_EEA0;
+  sm_cmd.selected_nas_sec_algs.type_of_eia = LIBLTE_MME_TYPE_OF_INTEGRITY_ALGORITHM_EIA0;
+
+  std::cout << "Ciphering Algorithm : "<< EEA_Types[sm_cmd.selected_nas_sec_algs.type_of_eea] << "\n";
+  std::cout << "Integrity Algorithm : "<< EIA_Types[sm_cmd.selected_nas_sec_algs.type_of_eia] << "\n";
+
   sm_cmd.nas_ksi.tsc_flag = LIBLTE_MME_TYPE_OF_SECURITY_CONTEXT_FLAG_NATIVE;
   sm_cmd.nas_ksi.nas_ksi  = m_sec_ctx.eksi;
 
@@ -1436,8 +1473,9 @@ bool nas::pack_security_mode_command(srslte::byte_buffer_t* nas_buffer)
   sm_cmd.ue_security_cap.gea_present = m_sec_ctx.ms_network_cap_present;
   memcpy(sm_cmd.ue_security_cap.gea, m_sec_ctx.ms_network_cap.gea, 8 * sizeof(bool));
 
+  // JJW_210316 : Always replay nonceUE by setting true
   sm_cmd.imeisv_req_present = false;
-  sm_cmd.nonce_ue_present   = false;
+  sm_cmd.nonce_ue_present   = false; 
   sm_cmd.nonce_mme_present  = false;
 
   uint8_t           sec_hdr_type = 3;
@@ -1464,6 +1502,12 @@ bool nas::pack_security_mode_command(srslte::byte_buffer_t* nas_buffer)
   // Generate MAC for integrity protection
   uint8_t mac[4];
   integrity_generate(nas_buffer, mac);
+
+  // JJW_210317 : Set NAS-MAC to zero
+  for(int i=0; i<4; i++) {
+	  mac[i] = 0;
+  }
+
   memcpy(&nas_buffer->msg[1], mac, 4);
   return true;
 }
