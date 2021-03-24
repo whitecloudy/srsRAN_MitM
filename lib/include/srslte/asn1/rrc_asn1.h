@@ -29002,7 +29002,7 @@ struct sl_comm_cfg_r12_s {
     };
     typedef setup_e types;
 
-    // choice methods
+   // choice methods
     comm_tx_res_r12_c_() = default;
     void        set(types::options e = types::nulltype);
     types       type() const { return type_; }
@@ -30526,7 +30526,20 @@ struct rrc_conn_release_v1530_ies_s {
   rrc_inactive_cfg_r15_s  rrc_inactive_cfg_r15;
   cn_type_r15_e_          cn_type_r15;
 
+  
   // sequence methods
+  // Modified
+  void  set_rrc_inactive_cfg_r15(){
+    rrc_inactive_cfg_r15_present = true;
+   
+    rrc_inactive_cfg_r15.full_i_rnti_r15.set(1, true);
+
+    rrc_inactive_cfg_r15.short_i_rnti_r15.set(1,true);
+
+    //rrc_inactive_cfg_r15.short_i_rnti_r15 = "01010101";
+
+    return;
+  }
   SRSASN_CODE pack(bit_ref& bref) const;
   SRSASN_CODE unpack(cbit_ref& bref);
   void        to_json(json_writer& j) const;
@@ -31759,9 +31772,16 @@ struct rrc_conn_release_v1320_ies_s {
   rrc_conn_release_v1530_ies_s non_crit_ext;
 
   // sequence methods
+  rrc_conn_release_v1530_ies_s& set_rrc_conn_release_v1530()
+      {
+        non_crit_ext_present = true;
+        return non_crit_ext;
+      }
+  
   SRSASN_CODE pack(bit_ref& bref) const;
   SRSASN_CODE unpack(cbit_ref& bref);
   void        to_json(json_writer& j) const;
+
 };
 
 struct eutra_event_s {
@@ -33760,6 +33780,12 @@ struct rrc_conn_release_v1020_ies_s {
   rrc_conn_release_v1320_ies_s non_crit_ext;
 
   // sequence methods
+  rrc_conn_release_v1320_ies_s& set_rrc_conn_release_v1320()
+      {
+        non_crit_ext_present = true;
+        return non_crit_ext;
+      }
+  // sequence methods
   SRSASN_CODE pack(bit_ref& bref) const;
   SRSASN_CODE unpack(cbit_ref& bref);
   void        to_json(json_writer& j) const;
@@ -34782,9 +34808,16 @@ struct rrc_conn_release_v920_ies_s {
   rrc_conn_release_v1020_ies_s non_crit_ext;
 
   // sequence methods
+  rrc_conn_release_v1020_ies_s& set_rrc_conn_release_v1020()
+      {
+        non_crit_ext_present = true;
+        return non_crit_ext;      
+      }
   SRSASN_CODE pack(bit_ref& bref) const;
   SRSASN_CODE unpack(cbit_ref& bref);
   void        to_json(json_writer& j) const;
+
+
 };
 
 // RRCConnectionRelease-v9e0-IEs ::= SEQUENCE
@@ -36057,6 +36090,12 @@ struct rrc_conn_release_v890_ies_s {
   rrc_conn_release_v920_ies_s non_crit_ext;
 
   // sequence methods
+  rrc_conn_release_v920_ies_s& set_rrc_conn_release_v920()
+      {
+        non_crit_ext_present = true;
+        return non_crit_ext;
+      }
+
   SRSASN_CODE pack(bit_ref& bref) const;
   SRSASN_CODE unpack(cbit_ref& bref);
   void        to_json(json_writer& j) const;
@@ -36239,7 +36278,7 @@ private:
 };
 
 // ReleaseCause ::= ENUMERATED
-struct release_cause_opts {
+struct release_cause_opts { //Modified
   enum options { load_balancing_ta_urequired, other, cs_fallback_high_prio_v1020, rrc_suspend_v1320, nulltype } value;
 
   std::string to_string() const;
@@ -36830,6 +36869,11 @@ struct rrc_conn_release_r8_ies_s {
   idle_mode_mob_ctrl_info_s   idle_mode_mob_ctrl_info;
   rrc_conn_release_v890_ies_s non_crit_ext;
 
+  rrc_conn_release_v890_ies_s& set_rrc_conn_release_v890()
+      {
+        non_crit_ext_present = true;
+        return non_crit_ext;
+      }
   // sequence methods
   SRSASN_CODE pack(bit_ref& bref) const;
   SRSASN_CODE unpack(cbit_ref& bref);

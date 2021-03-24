@@ -224,6 +224,7 @@ std::string rrc::ue::to_string(const activity_timeout_type_t& type)
 /*
  *  Connection Setup
  */
+int tmp_flag = 0;
 void rrc::ue::handle_rrc_con_req(rrc_conn_request_s* msg)
 {
   if (not parent->s1ap->is_mme_connected()) {
@@ -240,7 +241,17 @@ void rrc::ue::handle_rrc_con_req(rrc_conn_request_s* msg)
     has_tmsi = true;
   }
   establishment_cause = msg_r8->establishment_cause;
+  // Modified
+  //send_connection_reject();
+  //send_crafted_connection_release();  // Before rrc connection setup() 
   send_connection_setup();
+  if(tmp_flag == 0){
+    //send_crafted_connection_release();  // After rrc connection  setup() and before sending setup complete()
+    tmp_flag = 1;
+  }
+    
+  
+  //-------------------------------
   state = RRC_STATE_WAIT_FOR_CON_SETUP_COMPLETE;
 
   set_activity_timeout(UE_INACTIVITY_TIMEOUT);
@@ -248,6 +259,7 @@ void rrc::ue::handle_rrc_con_req(rrc_conn_request_s* msg)
 
 void rrc::ue::send_connection_setup()
 {
+    printf("\n\n setup start\n\n");
   // (Re-)Establish SRB1
   bearer_list.add_srb(1);
 
@@ -283,6 +295,8 @@ void rrc::ue::handle_rrc_con_setup_complete(rrc_conn_setup_complete_s* msg, srsl
   parent->phy->complete_config(rnti);
 
   parent->rrc_log->info("RRCConnectionSetupComplete transaction ID: %d\n", msg->rrc_transaction_id);
+  // Modified
+  printf("RRCConnectionSetupComplete transaction ID: %d\n", msg->rrc_transaction_id);
   rrc_conn_setup_complete_r8_ies_s* msg_r8 = &msg->crit_exts.c1().rrc_conn_setup_complete_r8();
 
   // TODO: msg->selected_plmn_id - used to select PLMN from SIB1 list
@@ -305,6 +319,17 @@ void rrc::ue::handle_rrc_con_setup_complete(rrc_conn_setup_complete_s* msg, srsl
     parent->s1ap->initial_ue(rnti, s1ap_cause, std::move(pdu));
   }
   state = RRC_STATE_WAIT_FOR_CON_RECONF_COMPLETE;
+  // Modified 
+  
+  //send_crafted_connection_release();  // After setup complete()
+  //send_crafted_connection_release();
+  //send_crafted_connection_release();
+  //send_crafted_connection_release();
+  //send_crafted_connection_release();
+  //send_connection_release();
+  //send_connection_release();
+  //send_connection_release();
+  
 }
 
 void rrc::ue::send_connection_reject()
@@ -794,6 +819,39 @@ void rrc::ue::send_connection_release()
   }
 
   send_dl_dcch(&dl_dcch_msg);
+}
+
+
+//Modified
+void rrc::ue::send_crafted_connection_release()
+{
+    dl_dcch_msg_s dl_dcch_msg;
+    auto& rrc_release = dl_dcch_msg.msg.set_c1().set_rrc_conn_release();
+    rrc_release.rrc_transaction_id = (uint8_t)((transaction_id++) % 4);
+    rrc_conn_release_r8_ies_s& rel_ies = rrc_release.crit_exts.set_c1().set_rrc_conn_release_r8();
+
+    rrc_conn_release_v890_ies_s& rel_v890 = rel_ies.set_rrc_conn_release_v890();
+    rrc_conn_release_v920_ies_s& rel_v920 = rel_v890.set_rrc_conn_release_v920();
+    rrc_conn_release_v1020_ies_s& rel_v1020 = rel_v920.set_rrc_conn_release_v1020();
+    rrc_conn_release_v1320_ies_s& rel_v1320 = rel_v1020.set_rrc_conn_release_v1320();
+    rrc_conn_release_v1530_ies_s& rel_v1530 = rel_v1320.set_rrc_conn_release_v1530();
+
+    rel_v1530.set_rrc_inactive_cfg_r15();
+
+    printf("\n-----------------------\nSend Crafted RRC release\n-----------------------\n");
+    rel_ies.release_cause = release_cause_e::rrc_suspend_v1320;
+    if (is_csfb) {
+        if (parent->sib7.carrier_freqs_info_list.size() > 0) {
+            rel_ies.redirected_carrier_info_present = true;
+            rel_ies.redirected_carrier_info.set_geran();
+            rel_ies.redirected_carrier_info.geran() = parent->sib7.carrier_freqs_info_list[0].carrier_freqs;
+        }
+        else {
+            rel_ies.redirected_carrier_info_present = false;
+        }
+    }
+
+    send_dl_dcch(&dl_dcch_msg);
 }
 
 /*

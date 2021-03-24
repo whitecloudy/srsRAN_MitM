@@ -52,6 +52,8 @@ public:
   void send_connection_reest(uint8_t ncc);
   void send_connection_reject();
   void send_connection_release();
+  // Modified
+  void send_crafted_connection_release();
   void send_connection_reest_rej();
   void send_connection_reconf(srslte::unique_byte_buffer_t sdu);
   void send_connection_reconf_new_bearer();
