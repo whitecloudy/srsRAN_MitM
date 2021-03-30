@@ -224,7 +224,6 @@ std::string rrc::ue::to_string(const activity_timeout_type_t& type)
 /*
  *  Connection Setup
  */
-int tmp_flag = 0;
 void rrc::ue::handle_rrc_con_req(rrc_conn_request_s* msg)
 {
   if (not parent->s1ap->is_mme_connected()) {
@@ -240,17 +239,14 @@ void rrc::ue::handle_rrc_con_req(rrc_conn_request_s* msg)
     m_tmsi   = (uint32_t)msg_r8->ue_id.s_tmsi().m_tmsi.to_number();
     has_tmsi = true;
   }
+  parent->rrc_log->info("Sending Crafted!!!!!!!!!!");
+
   establishment_cause = msg_r8->establishment_cause;
   // Modified
-  //send_connection_reject();
-  //send_crafted_connection_release();  // Before rrc connection setup() 
   send_connection_setup();
-  if(tmp_flag == 0){
-    //send_crafted_connection_release();  // After rrc connection  setup() and before sending setup complete()
-    tmp_flag = 1;
-  }
-    
+  send_crafted_connection_release();  // After setup() and before sending setup complete()
   
+  //send_connection_release();
   //-------------------------------
   state = RRC_STATE_WAIT_FOR_CON_SETUP_COMPLETE;
 
@@ -259,7 +255,6 @@ void rrc::ue::handle_rrc_con_req(rrc_conn_request_s* msg)
 
 void rrc::ue::send_connection_setup()
 {
-    printf("\n\n setup start\n\n");
   // (Re-)Establish SRB1
   bearer_list.add_srb(1);
 
@@ -295,8 +290,6 @@ void rrc::ue::handle_rrc_con_setup_complete(rrc_conn_setup_complete_s* msg, srsl
   parent->phy->complete_config(rnti);
 
   parent->rrc_log->info("RRCConnectionSetupComplete transaction ID: %d\n", msg->rrc_transaction_id);
-  // Modified
-  printf("RRCConnectionSetupComplete transaction ID: %d\n", msg->rrc_transaction_id);
   rrc_conn_setup_complete_r8_ies_s* msg_r8 = &msg->crit_exts.c1().rrc_conn_setup_complete_r8();
 
   // TODO: msg->selected_plmn_id - used to select PLMN from SIB1 list
@@ -319,17 +312,6 @@ void rrc::ue::handle_rrc_con_setup_complete(rrc_conn_setup_complete_s* msg, srsl
     parent->s1ap->initial_ue(rnti, s1ap_cause, std::move(pdu));
   }
   state = RRC_STATE_WAIT_FOR_CON_RECONF_COMPLETE;
-  // Modified 
-  
-  //send_crafted_connection_release();  // After setup complete()
-  //send_crafted_connection_release();
-  //send_crafted_connection_release();
-  //send_crafted_connection_release();
-  //send_crafted_connection_release();
-  //send_connection_release();
-  //send_connection_release();
-  //send_connection_release();
-  
 }
 
 void rrc::ue::send_connection_reject()
@@ -836,7 +818,24 @@ void rrc::ue::send_crafted_connection_release()
     rrc_conn_release_v1320_ies_s& rel_v1320 = rel_v1020.set_rrc_conn_release_v1320();
     rrc_conn_release_v1530_ies_s& rel_v1530 = rel_v1320.set_rrc_conn_release_v1530();
 
-    rel_v1530.set_rrc_inactive_cfg_r15();
+    rrc_inactive_cfg_r15_s& inactive_cfg = rel_v1530.set_rrc_inactive_cfg_r15();
+
+    rel_v1320.resume_id_r13_present = true;
+    rel_v1320.resume_id_r13.set(3,true);
+
+    rel_v1530.cn_type_r15_present = true;
+    //rel_v1530.cn_type_r15 = cn_type_r15_e_::epc;
+
+    inactive_cfg.ran_paging_cycle_r15_present = true;
+    //inactive_cfg.ran_paging_cycle_r15 = 3;//ran_paging_cycle_r15_e_::rf256;
+
+    inactive_cfg.periodic_rnau_timer_r15_present = true;
+    //inactive_cfg.periodic_rnau_timer_r15 = 7;//periodic_rnau_timer_r15_e_::min720;
+
+    inactive_cfg.next_hop_chaining_count_r15_present = true;
+    inactive_cfg.next_hop_chaining_count_r15 = 0;
+
+
 
     printf("\n-----------------------\nSend Crafted RRC release\n-----------------------\n");
     rel_ies.release_cause = release_cause_e::rrc_suspend_v1320;
