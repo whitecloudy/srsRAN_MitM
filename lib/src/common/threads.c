@@ -1,5 +1,5 @@
 /**
- * Copyright 2013-2021 Software Radio Systems Limited
+ * Copyright 2013-2022 Software Radio Systems Limited
  *
  * This file is part of srsRAN.
  *
@@ -89,7 +89,9 @@ bool threads_new_rt_cpu(pthread_t* thread, void* (*start_routine)(void*), void* 
 #else
   // All threads have normal priority except prio_offset=0,1,2,3,4
   if (prio_offset >= 0 && prio_offset < 5) {
-    param.sched_priority = sched_get_priority_max(SCHED_FIFO) - prio_offset;
+    // Subtract one to the priority offset to avoid scheduling threads with the highest priority that could contend with
+    // OS critical tasks.
+    param.sched_priority = sched_get_priority_max(SCHED_FIFO) - prio_offset - 1;
     if (pthread_attr_init(&attr)) {
       perror("pthread_attr_init");
     } else {
@@ -144,6 +146,11 @@ bool threads_new_rt_cpu(pthread_t* thread, void* (*start_routine)(void*), void* 
       perror("pthread_attr_setaffinity_np");
     }
   }
+
+// TSAN seems to have issues with thread attributes when running as normal user, disable them in that case
+#if HAVE_TSAN
+  attr_enable = false;
+#endif
 
   int err = pthread_create(thread, attr_enable ? &attr : NULL, start_routine, arg);
   if (err) {
