@@ -37,11 +37,47 @@ using namespace asn1::rrc_nr;
 
 namespace srsenb {
 
+static void * receiving_worker(rrc_nr * rrc_ptr)
+{
+  while(1)
+  {
+    rrc_ptr->debug_counter += 1;
+    std::cout <<"working!!"<<std::endl;
+    srsran::const_byte_span recv_data = rrc_ptr->recv_from_controller();
+    rrc_ptr->handle_pdu(rrc_ptr->rnti_tmp, rrc_ptr->lcid_tmp, recv_data);
+  }
+
+  return nullptr;
+}
+
 rrc_nr::rrc_nr(srsran::task_sched_handle task_sched_) :
   logger(srslog::fetch_basic_logger("RRC-NR")), task_sched(task_sched_)
-{}
+{
+    cli_sock = socket(PF_INET, SOCK_DGRAM, 0);
+    if(cli_sock==-1)
+      logger.error("socket() error");
 
-rrc_nr::~rrc_nr() {}
+    memset(&serv_addr, 0, sizeof(serv_addr));
+    cli_addr.sin_family=AF_INET;
+    cli_addr.sin_addr.s_addr=inet_addr("127.0.10.1");
+    cli_addr.sin_port=0;
+
+    serv_addr.sin_family=AF_INET;
+    serv_addr.sin_addr.s_addr=inet_addr("127.0.10.1");
+    serv_addr.sin_port=htons(SERVER_PORT);
+
+    serv_addr_sz = sizeof(serv_addr);
+
+    if(bind(cli_sock, (struct sockaddr*)&cli_addr, sizeof(cli_addr)) == -1)
+      logger.error("bind() error");
+
+    recv_thread = std::thread(&receiving_worker, this);
+}
+
+rrc_nr::~rrc_nr() 
+{
+  close(cli_sock);
+}
 
 int rrc_nr::init(const rrc_nr_cfg_t&         cfg_,
                  phy_interface_stack_nr*     phy_,
@@ -599,16 +635,36 @@ void rrc_nr::handle_rrc_reest_request(uint16_t rnti, const asn1::rrc_nr::rrc_ree
   u.handle_rrc_reestablishment_request(msg);
 }
 
+void rrc_nr::send_to_controller(srsran::const_byte_span pdu)
+{
+  const uint8_t * data_ptr = pdu.data();
+  const int data_size = pdu.size();
+  std::cout << "Sending : "<<data_size<<std::endl;
+
+  sendto(cli_sock, data_ptr, data_size, 0, (struct sockaddr*)&serv_addr, serv_addr_sz);
+}
+
+srsran::byte_span rrc_nr::recv_from_controller(void)
+{
+  uint8_t buffer[BUF_SIZE];
+  int recv_len = recvfrom(cli_sock, buffer, BUF_SIZE, 0, (struct sockaddr*)&serv_addr, &serv_addr_sz);
+  srsran::byte_span data_span(buffer, recv_len);
+
+  return data_span;
+}
+
 /*******************************************************************************
   PDCP interface
 *******************************************************************************/
 void rrc_nr::write_pdu(uint16_t rnti, uint32_t lcid, srsran::unique_byte_buffer_t pdu)
 {
-  if (pdu == nullptr or pdu->N_bytes == 0) {
-    logger.error("Rx %s PDU, rnti=0x%x - Discarding. Cause: PDU is empty", srsenb::get_rb_name(lcid), rnti);
-    return;
-  }
+  rnti_tmp = rnti;
+  lcid_tmp = lcid;
+  std::cout << "hello?"<<std::endl;
+  send_to_controller(*pdu);
+  //srsran::const_byte_span recv_data = recv_from_controller();
   handle_pdu(rnti, lcid, *pdu);
+  //handle_pdu(rnti, lcid, recv_data);
 }
 
 void rrc_nr::notify_pdcp_integrity_error(uint16_t rnti, uint32_t lcid) {}
