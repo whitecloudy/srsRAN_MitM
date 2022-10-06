@@ -51,7 +51,7 @@
 #include <sys/socket.h>
 
 #define BUF_SIZE (65536)
-#define SERVER_PORT (9395)
+#define SERVER_PORT (9090)
 
 namespace srsenb {
 
@@ -230,6 +230,11 @@ public:
 public:
   void send_to_controller(srsran::const_byte_span pdu);
   srsran::byte_span recv_from_controller(void);
+
+  // JJW~
+  void send_to_controller_pdu(srsran::unique_byte_buffer_t pdu);
+  srsran::unique_byte_buffer_t recv_from_controller_pdu(void);
+  // ~JJW
 };
 
 } // namespace srsenb

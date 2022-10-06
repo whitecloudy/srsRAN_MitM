@@ -37,14 +37,38 @@ using namespace asn1::rrc_nr;
 
 namespace srsenb {
 
+rlc_interface_rrc* rlc_temp;
+pdcp_interface_rrc* pdcp_temp;
+
 static void * receiving_worker(rrc_nr * rrc_ptr)
 {
   while(1)
   {
     rrc_ptr->debug_counter += 1;
     std::cout <<"working!!"<<std::endl;
-    srsran::const_byte_span recv_data = rrc_ptr->recv_from_controller();
-    rrc_ptr->handle_pdu(rrc_ptr->rnti_tmp, rrc_ptr->lcid_tmp, recv_data);
+    //srsran::const_byte_span recv_data = rrc_ptr->recv_from_controller();
+    // JJW~
+    srsran::unique_byte_buffer_t recv_data = rrc_ptr->recv_from_controller_pdu();
+    std::cout << "Recv from controller: " << recv_data->N_bytes <<std::endl;
+    //rrc_ptr->handle_pdu(rrc_ptr->rnti_tmp, rrc_ptr->lcid_tmp, recv_data);
+    // ~JJW
+
+    switch (static_cast<srsran::nr_srb>(rrc_ptr->lcid_tmp)) {
+      case srsran::nr_srb::srb0:
+        //handle_ul_ccch(rnti, pdu);
+        rlc_temp->write_sdu(rrc_ptr->rnti_tmp, srsran::srb_to_lcid(srsran::nr_srb::srb0), std::move(recv_data));
+        break;
+      case srsran::nr_srb::srb1:
+      case srsran::nr_srb::srb2:
+      case srsran::nr_srb::srb3:
+       // handle_ul_dcch(rnti, lcid, std::move(pdu));
+        pdcp_temp->write_sdu(rrc_ptr->rnti_tmp, srsran::srb_to_lcid(srsran::nr_srb::srb1), std::move(recv_data));
+        break;
+      default:
+        //std::string errcause = fmt::format("Invalid LCID=%d", lcid);
+        //log_rx_pdu_fail(rnti, lcid, pdu, errcause.c_str());
+        break;
+    }
   }
 
   return nullptr;
@@ -53,22 +77,29 @@ static void * receiving_worker(rrc_nr * rrc_ptr)
 rrc_nr::rrc_nr(srsran::task_sched_handle task_sched_) :
   logger(srslog::fetch_basic_logger("RRC-NR")), task_sched(task_sched_)
 {
-    cli_sock = socket(PF_INET, SOCK_DGRAM, 0);
+    cli_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
     if(cli_sock==-1)
       logger.error("socket() error");
 
     memset(&serv_addr, 0, sizeof(serv_addr));
     cli_addr.sin_family=AF_INET;
-    cli_addr.sin_addr.s_addr=inet_addr("127.0.10.1");
-    cli_addr.sin_port=0;
+    cli_addr.sin_addr.s_addr=inet_addr("127.123.123.24");
+    cli_addr.sin_port=htons(9090);
 
     serv_addr.sin_family=AF_INET;
-    serv_addr.sin_addr.s_addr=inet_addr("127.0.10.1");
-    serv_addr.sin_port=htons(SERVER_PORT);
+    serv_addr.sin_addr.s_addr=inet_addr("127.123.123.24");
+    //serv_addr.sin_port=htons(SERVER_PORT);
+    serv_addr.sin_port=htons(9091);
+    //serv_addr.sin_port=0;
 
+    cli_addr_sz = sizeof(cli_addr);
     serv_addr_sz = sizeof(serv_addr);
+    //connect(cli_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
 
-    if(bind(cli_sock, (struct sockaddr*)&cli_addr, sizeof(cli_addr)) == -1)
+    //if(bind(cli_sock, (struct sockaddr*)&cli_addr, sizeof(cli_addr)) == -1)
+    //  logger.error("bind() error");
+
+    if(bind(cli_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1)
       logger.error("bind() error");
 
     recv_thread = std::thread(&receiving_worker, this);
@@ -97,6 +128,11 @@ int rrc_nr::init(const rrc_nr_cfg_t&         cfg_,
   gtpu          = gtpu_;
   bearer_mapper = &bearer_mapper_;
   rrc_eutra     = rrc_eutra_;
+
+  // JJW~
+  rlc_temp = rlc_;
+  pdcp_temp = pdcp_;
+  // ~JJW
 
   cfg = cfg_;
 
@@ -653,6 +689,24 @@ srsran::byte_span rrc_nr::recv_from_controller(void)
   return data_span;
 }
 
+void rrc_nr::send_to_controller_pdu(srsran::unique_byte_buffer_t pdu) {
+  sendto(cli_sock, pdu->msg, pdu->N_bytes, 0, (struct sockaddr*)&serv_addr, serv_addr_sz);
+}
+
+srsran::unique_byte_buffer_t rrc_nr::recv_from_controller_pdu(void) {
+  uint8_t buffer[BUF_SIZE];
+  struct sockaddr_in from_addr;
+  socklen_t from_addr_sz = sizeof(from_addr);
+
+  int recv_len = recvfrom(cli_sock, buffer, BUF_SIZE, 0, (struct sockaddr*)&from_addr, &from_addr_sz);
+
+  srsran::unique_byte_buffer_t pdu_recv = srsran::make_byte_buffer();
+  pdu_recv->msg = buffer;
+  pdu_recv->N_bytes = recv_len;
+
+  return pdu_recv;
+}
+
 /*******************************************************************************
   PDCP interface
 *******************************************************************************/
@@ -660,10 +714,17 @@ void rrc_nr::write_pdu(uint16_t rnti, uint32_t lcid, srsran::unique_byte_buffer_
 {
   rnti_tmp = rnti;
   lcid_tmp = lcid;
-  std::cout << "hello?"<<std::endl;
-  send_to_controller(*pdu);
+  //std::cout << "hello?"<<std::endl;
+  //send_to_controller(*pdu);
   //srsran::const_byte_span recv_data = recv_from_controller();
-  handle_pdu(rnti, lcid, *pdu);
+  
+  // JJW~
+  //handle_pdu(rnti, lcid, *pdu);
+  //send_to_controller_pdu(pdu);
+  std::cout << "Send to controller: " << pdu->N_bytes << std::endl;
+  sendto(cli_sock, pdu->msg, pdu->N_bytes, 0, (struct sockaddr*)&cli_addr, cli_addr_sz);
+  // ~JJW
+   
   //handle_pdu(rnti, lcid, recv_data);
 }
 

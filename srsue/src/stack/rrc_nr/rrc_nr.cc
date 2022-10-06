@@ -28,6 +28,21 @@
 #include "srsue/hdr/stack/rrc_nr/rrc_nr_procedures.h"
 #include "srsue/hdr/stack/upper/usim.h"
 
+// JJW
+#include <iostream>
+#include <srsran/common/byte_buffer.h>
+#include <thread>
+#include <srsran/common/common.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
 using namespace asn1::rrc_nr;
 using namespace asn1;
 using namespace srsran;
@@ -35,6 +50,56 @@ using namespace srsran;
 namespace srsue {
 
 const static char* rrc_nr_state_text[] = {"IDLE", "CONNECTED", "CONNECTED-INACTIVE"};
+
+int sockfd, sockfd2;
+struct sockaddr_in servaddr, cliaddr;
+std::thread receiving_thread;
+uint32_t lcid_tmp;
+rlc_interface_rrc* rlc_temp;
+pdcp_interface_rrc* pdcp_temp;
+
+// JJW~
+/*
+void receiving(int clientSock) {
+  int clientSocket = clientSock;
+  unsigned int len, n;
+  char buffer[1024];
+
+  len = sizeof(cliaddr);
+  while(true) {
+    n = recvfrom(clientSocket, (char *)buffer, 1024, MSG_WAITALL, (struct sockaddr *)&cliaddr, &len);
+    std::cout << n << std::endl;
+  }
+}
+*/
+// ~JJW
+
+// JJW~
+void* receiving_worker(rrc_nr* rrc_ptr) {
+  std::cout << "RRC Receiving Worker" << std::endl;
+  while(true) {
+    srsran::unique_byte_buffer_t recv_data = rrc_ptr->recv_from_controller();
+    std::cout << recv_data->N_bytes << std::endl;
+
+    switch (static_cast<nr_srb>(lcid_tmp)) {
+      case nr_srb::srb0:
+        //decode_dl_ccch(std::move(pdu));
+        rlc_temp->write_sdu(lcid_tmp, std::move(recv_data));
+        break;
+      case nr_srb::srb1:
+      case nr_srb::srb2:
+        //decode_dl_dcch(lcid, std::move(pdu));
+        pdcp_temp->write_sdu(lcid_tmp, std::move(recv_data));
+        break;
+      default:
+        //logger.error("RX PDU with invalid bearer id: %d", lcid);
+        break;
+    }
+  }
+
+  return nullptr;
+}
+// ~JJW
 
 rrc_nr::rrc_nr(srsran::task_sched_handle task_sched_) :
   logger(srslog::fetch_basic_logger("RRC-NR")),
@@ -46,6 +111,44 @@ rrc_nr::rrc_nr(srsran::task_sched_handle task_sched_) :
   meas_cells(task_sched_)
 {
   set_phy_default_config();
+
+  //JJW~
+  if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP)) < 0 ) {
+    std::cout << "Socket Creation Error" << std::endl;
+  }
+
+  //if ((sockfd2 = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP)) < 0 ) {
+  //  std::cout << "Socket Creation Error" << std::endl;
+  //}
+
+  memset(&servaddr, 0, sizeof(servaddr));
+  //memset(&cliaddr, 0, sizeof(cliaddr));
+
+  cliaddr.sin_family = AF_INET;
+  cliaddr.sin_port = htons(8080);
+  cliaddr.sin_addr.s_addr = inet_addr("127.123.123.24");
+
+  servaddr.sin_family = AF_INET;
+  servaddr.sin_port = htons(8081);
+  //servaddr.sin_port = 0;
+  servaddr.sin_addr.s_addr = inet_addr("127.123.123.24");
+
+  if (bind(sockfd, (const struct sockaddr*)&servaddr, sizeof(servaddr)) == -1) {
+    logger.error("RRC Bind Error");
+  }
+
+  //if (bind(sockfd2, (const struct sockaddr*)&servaddr, sizeof(servaddr)) == -1) {
+  //  logger.error("RRC Bind Error");
+  //}
+
+  //thread t1(receiving, sockfd);
+  //const char* hi = "hello";
+  //sendto(sockfd, hi, 10, MSG_CONFIRM, (const struct sockaddr *)&servaddr, sizeof(servaddr));
+
+  //connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr));
+  receiving_thread = std::thread(&receiving_worker, this);
+  std::cout << "RRC Receiving Thread Started" << std::endl;
+  //~JJW
 }
 
 rrc_nr::~rrc_nr() = default;
@@ -74,6 +177,11 @@ int rrc_nr::init(phy_interface_rrc_nr*       phy_,
   usim      = usim_;
   stack     = stack_;
   args      = args_;
+
+  // JJW~
+  rlc_temp = rlc_;
+  pdcp_temp = pdcp_;
+  // ~JJW
 
   // allocate RRC timers
   t300 = task_sched.get_unique_timer();
@@ -116,6 +224,25 @@ int rrc_nr::init(phy_interface_rrc_nr*       phy_,
   sim_measurement_timer = task_sched.get_unique_timer();
   return SRSRAN_SUCCESS;
 }
+
+// JJW~
+srsran::unique_byte_buffer_t rrc_nr::recv_from_controller(void) {
+  uint8_t buffer[65536];
+  socklen_t servaddr_sz = sizeof(servaddr);
+  socklen_t cliaddr_sz = sizeof(cliaddr);
+
+  struct sockaddr_in from_addr;
+  socklen_t from_addr_sz = sizeof(from_addr);
+  int recv_len = recvfrom(sockfd, buffer, 65536, 0, (struct sockaddr*)&from_addr, &from_addr_sz);
+  srsran::unique_byte_buffer_t pdu_recv = srsran::make_byte_buffer();
+  pdu_recv->msg = buffer;
+  pdu_recv->N_bytes = recv_len;
+
+  std::cout << "Recv from controller: " << recv_len << std::endl;
+
+  return pdu_recv;
+}
+// ~JJW
 
 void rrc_nr::stop()
 {
@@ -243,6 +370,13 @@ void rrc_nr::run_tti(uint32_t tti) {}
 // PDCP interface
 void rrc_nr::write_pdu(uint32_t lcid, srsran::unique_byte_buffer_t pdu)
 {
+  // JJW~
+  //std::cout << pdu->N_bytes << std::endl;
+  sendto(sockfd, pdu->msg, pdu->N_bytes, MSG_CONFIRM, (const struct sockaddr *)&cliaddr, sizeof(cliaddr));
+  lcid_tmp = lcid;
+  // ~JJW
+
+  /* Remove downlink handling functions
   logger.debug("RX PDU, LCID: %d", lcid);
   switch (static_cast<nr_srb>(lcid)) {
     case nr_srb::srb0:
@@ -256,6 +390,7 @@ void rrc_nr::write_pdu(uint32_t lcid, srsran::unique_byte_buffer_t pdu)
       logger.error("RX PDU with invalid bearer id: %d", lcid);
       break;
   }
+  */
 }
 
 void rrc_nr::decode_dl_ccch(unique_byte_buffer_t pdu)
@@ -273,6 +408,10 @@ void rrc_nr::decode_dl_ccch(unique_byte_buffer_t pdu)
   dl_ccch_msg_type_c::c1_c_* c1 = &dl_ccch_msg.msg.c1();
   switch (dl_ccch_msg.msg.c1().type().value) {
     case dl_ccch_msg_type_c::c1_c_::types::rrc_reject: {
+      // JJW~
+      std::cout << "JJW: [DL CCCH] RRC Reject" << std::endl;
+      // ~JJW
+
       // 5.3.15
       const auto& reject = c1->rrc_reject();
       srsran::console("Received RRC Reject\n");
@@ -290,9 +429,57 @@ void rrc_nr::decode_dl_ccch(unique_byte_buffer_t pdu)
       }
     } break;
     case dl_ccch_msg_type_c::c1_c_::types::rrc_setup: {
+
       transaction_id             = c1->rrc_setup().rrc_transaction_id;
       rrc_setup_s rrc_setup_copy = c1->rrc_setup();
       task_sched.defer_task([this, rrc_setup_copy]() { handle_rrc_setup(rrc_setup_copy); });
+
+      // JJW~
+      std::cout << "JJW: [DL CCCH] RRC Setup" << std::endl;
+      /*
+      std::cout << dl_ccch_msg.msg.c1().type().to_string() << std::endl;
+      std::cout << pdu->N_bytes << std::endl;
+
+      json_writer jw;
+      dl_ccch_msg.to_json(jw);
+      std::cout << jw.to_string().c_str() << std::endl;
+      */
+
+      //int n, len;
+
+      //sendto(sockfd, jw.to_string().c_str(), strlen(jw.to_string().c_str()), MSG_CONFIRM, (const struct sockaddr *)&servaddr, sizeof(servaddr));
+
+      //close(sockfd);
+
+      /*
+      int sock = socket(AF_INET, SOCK_DGRAM, 0);
+      sockaddr_in serv_addr;
+      memset(&serv_addr, 0, sizeof(serv_addr));
+      serv_addr.sin_family = AF_INET;
+      serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+      serv_addr.sin_port = htons(3000);
+
+      connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+      //send(sock, pdu, pdu->N_bytes, 0);
+      send(sock, jw.to_string().c_str(), 4096, 0);
+
+      int fd, *pmmap, i;
+      fd = open("/mm", O_RDWR, 0666);
+      if (fd < 0) {
+        std::cout << "File Open Error" << std::endl;
+      }
+      int asd = ftruncate(fd, 4096);
+
+      pmmap = (int*)mmap(NULL, 4096, FLAG, MAP_SHARED, fd, 0);
+      for (i=0; i<100; i++) {
+        pmmap[i] = i;
+      }
+
+      pmmap[i+1] = -1;
+      //munmap(pmmap, 4096);
+      //close(fd);
+      */
+      // ~JJW
       break;
     }
     default:
@@ -316,26 +503,46 @@ void rrc_nr::decode_dl_dcch(uint32_t lcid, unique_byte_buffer_t pdu)
   switch (dl_dcch_msg.msg.c1().type().value) {
     // TODO: ADD missing cases
     case dl_dcch_msg_type_c::c1_c_::types::rrc_recfg: {
+      // JJW~
+      std::cout << "JJW: [DL DCCH] RRC Reconfig" << std::endl;
+      // ~JJW
+
       rrc_recfg_s recfg = c1->rrc_recfg();
       task_sched.defer_task([this, recfg]() { handle_rrc_reconfig(recfg); });
       break;
     }
     case dl_dcch_msg_type_c::c1_c_::types::dl_info_transfer: {
+      // JJW~
+      std::cout << "JJW: [DL DCCH] RRC DL Info Transfer" << std::endl;
+      // ~JJW
+
       dl_info_transfer_s dl_info_transfer = c1->dl_info_transfer();
       task_sched.defer_task([this, dl_info_transfer]() { handle_dl_info_transfer(dl_info_transfer); });
       break;
     }
     case dl_dcch_msg_type_c::c1_c_::types::security_mode_cmd: {
+      // JJW~
+      std::cout << "JJW: [DL DCCH] RRC Security Mode Command" << std::endl;
+      // ~JJW
+
       security_mode_cmd_s smc = c1->security_mode_cmd();
       task_sched.defer_task([this, smc]() { handle_security_mode_command(smc); });
       break;
     }
     case dl_dcch_msg_type_c::c1_c_::types::rrc_release: {
+      // JJW~
+      std::cout << "JJW: [DL DCCH] RRC Release" << std::endl;
+      // ~JJW
+
       rrc_release_s rrc_release = c1->rrc_release();
       task_sched.defer_task([this, rrc_release]() { handle_rrc_release(rrc_release); });
       break;
     }
     case dl_dcch_msg_type_c::c1_c_::types::ue_cap_enquiry: {
+      // JJW~
+      std::cout << "JJW: [DL DCCH] UE Capability Enquiry" << std::endl;
+      // ~JJW
+
       ue_cap_enquiry_s ue_cap_enquiry = c1->ue_cap_enquiry();
       task_sched.defer_task([this, ue_cap_enquiry]() { handle_ue_capability_enquiry(ue_cap_enquiry); });
       break;
