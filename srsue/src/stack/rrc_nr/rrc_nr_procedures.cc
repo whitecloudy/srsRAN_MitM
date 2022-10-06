@@ -233,7 +233,9 @@ proc_outcome_t rrc_nr::setup_request_proc::step()
     rrc_handle.t300.run();
 
     // Send setup request message to lower layers
-    rrc_handle.send_setup_request(cause);
+    // JJW~
+    //rrc_handle.send_setup_request(cause);
+    // ~JJW
 
     // Save dedicatedInfoNAS SDU, if needed (TODO: this should be passed to procedure without temp storage)
     if (dedicated_info_nas.get()) {

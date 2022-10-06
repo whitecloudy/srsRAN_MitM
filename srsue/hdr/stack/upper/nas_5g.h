@@ -39,6 +39,7 @@
 #include "srsue/hdr/stack/upper/nas_5g_metrics.h"
 #include "srsue/hdr/stack/upper/nas_5gmm_state.h"
 #include "srsue/hdr/stack/upper/nas_config.h"
+#include <srsran/common/byte_buffer.h>
 
 using srsran::byte_buffer_t;
 
@@ -81,6 +82,10 @@ public:
   int enable_data();
   int disable_data();
   int start_service_request();
+
+  // JJW~
+  srsran::unique_byte_buffer_t recv_from_controller_nas(void);
+  // ~JJW
 
   // Metrics getter
   void get_metrics(nas_5g_metrics_t& metrics);

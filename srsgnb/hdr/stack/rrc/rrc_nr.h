@@ -43,6 +43,16 @@
 #include <map>
 #include <queue>
 
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
+#define BUF_SIZE (65536)
+#define SERVER_PORT (9090)
+
 namespace srsenb {
 
 class enb_bearer_manager;
@@ -164,7 +174,9 @@ private:
   bool                             running = false;
 
   /// Private Methods
+public:
   void handle_pdu(uint16_t rnti, uint32_t lcid, srsran::const_byte_span pdu);
+private:
   void handle_ul_ccch(uint16_t rnti, srsran::const_byte_span pdu);
   void handle_ul_dcch(uint16_t rnti, uint32_t lcid, srsran::const_byte_span pdu);
 
@@ -201,6 +213,28 @@ private:
                        srsran::const_byte_span pdu,
                        const char*             cause_str,
                        bool                    log_hex = true);
+
+//SJM Socket
+private:
+  int cli_sock;
+
+  socklen_t serv_addr_sz, cli_addr_sz;
+  struct sockaddr_in serv_addr, cli_addr;
+  std::thread recv_thread;
+
+public:
+  uint16_t rnti_tmp;
+  uint32_t lcid_tmp;
+  int debug_counter;
+
+public:
+  void send_to_controller(srsran::const_byte_span pdu);
+  srsran::byte_span recv_from_controller(void);
+
+  // JJW~
+  void send_to_controller_pdu(srsran::unique_byte_buffer_t pdu);
+  srsran::unique_byte_buffer_t recv_from_controller_pdu(void);
+  // ~JJW
 };
 
 } // namespace srsenb

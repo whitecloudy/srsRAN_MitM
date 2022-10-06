@@ -801,6 +801,7 @@ int main(int argc, char* argv[])
   pthread_create(&input, nullptr, &input_loop, &args);
 
   cout << "Attaching UE..." << endl;
+  cout << "Attaching UE... JJW" << endl;
   ue.switch_on();
 
   if (args.gui.enable) {
