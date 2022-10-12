@@ -98,6 +98,7 @@ nas_5g::nas_5g(srslog::basic_logger& logger_, srsran::task_sched_handle task_sch
   t3521.set(t3521_duration_ms, [this](uint32_t tid) { timer_expired(tid); });
   reregistration_timer.set(reregistration_timer_duration_ms, [this](uint32_t tid) { timer_expired(tid); });
 
+  /*
   //JJW~
   if ((sockfd_nas = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
     std::cout << "Socket Creation Error" << std::endl;
@@ -105,20 +106,21 @@ nas_5g::nas_5g(srslog::basic_logger& logger_, srsran::task_sched_handle task_sch
 
   memset(&servaddr_nas, 0, sizeof(servaddr_nas));
 
-  //cliaddr_nas.sin_family = AF_INET;
-  //cliaddr_nas.sin_port = htons(8080);
-  //cliaddr_nas.sin_addr.s_addr = inet_addr("127.0.0.1");
+  cliaddr_nas.sin_family = AF_INET;
+  cliaddr_nas.sin_port = htons(8080);
+  cliaddr_nas.sin_addr.s_addr = inet_addr("127.123.123.24");
 
   servaddr_nas.sin_family = AF_INET;
-  servaddr_nas.sin_port = htons(8080);
-  servaddr_nas.sin_addr.s_addr = inet_addr("192.168.0.255");
+  servaddr_nas.sin_port = htons(8081);
+  servaddr_nas.sin_addr.s_addr = inet_addr("127.123.123.24");
 
-  //if (bind(sockfd_nas, (const struct sockaddr*)&cliaddr_nas, sizeof(cliaddr_nas)) == -1) {
-  //  logger.error("NAS Bind Error");
-  //}
+  if (bind(sockfd_nas, (const struct sockaddr*)&servaddr_nas, sizeof(servaddr_nas)) == -1) {
+    logger.error("NAS Bind Error");
+  }
 
   receiving_thread_nas = std::thread(&receiving_worker_nas, this);
   //~JJW
+  */
 }
 
 // JJW~

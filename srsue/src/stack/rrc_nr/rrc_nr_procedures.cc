@@ -234,7 +234,7 @@ proc_outcome_t rrc_nr::setup_request_proc::step()
 
     // Send setup request message to lower layers
     // JJW~
-    //rrc_handle.send_setup_request(cause);
+    rrc_handle.send_setup_request(cause);
     // ~JJW
 
     // Save dedicatedInfoNAS SDU, if needed (TODO: this should be passed to procedure without temp storage)
@@ -354,8 +354,9 @@ srsran::proc_outcome_t rrc_nr::connection_setup_proc::react(const bool& config_c
     logger.error("Connection Setup Failed");
     return proc_outcome_t::error;
   }
-
-  rrc_handle.send_con_setup_complete(std::move(dedicated_info_nas));
+  // JJW~
+  //rrc_handle.send_con_setup_complete(std::move(dedicated_info_nas));
+  // ~JJW
   return proc_outcome_t::success;
 }
 

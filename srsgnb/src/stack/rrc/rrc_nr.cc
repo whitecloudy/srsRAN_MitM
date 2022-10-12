@@ -721,8 +721,24 @@ void rrc_nr::write_pdu(uint16_t rnti, uint32_t lcid, srsran::unique_byte_buffer_
   // JJW~
   //handle_pdu(rnti, lcid, *pdu);
   //send_to_controller_pdu(pdu);
-  std::cout << "Send to controller: " << pdu->N_bytes << std::endl;
-  sendto(cli_sock, pdu->msg, pdu->N_bytes, 0, (struct sockaddr*)&cli_addr, cli_addr_sz);
+
+  switch (static_cast<srsran::nr_srb>(lcid)) {
+    case srsran::nr_srb::srb0:
+      handle_pdu(rnti, lcid, *pdu);
+      break;
+    case srsran::nr_srb::srb1:
+    case srsran::nr_srb::srb2:
+    case srsran::nr_srb::srb3:
+      //handle_ul_dcch(rnti, lcid, std::move(pdu));
+      std::cout << "Send to controller: " << pdu->N_bytes << std::endl;
+      sendto(cli_sock, pdu->msg, pdu->N_bytes, 0, (struct sockaddr*)&cli_addr, cli_addr_sz);
+      break;
+    default:
+      std::string errcause = fmt::format("Invalid LCID=%d", lcid);
+      //log_rx_pdu_fail(rnti, lcid, pdu, errcause.c_str());
+      break;
+  }
+
   // ~JJW
    
   //handle_pdu(rnti, lcid, recv_data);
