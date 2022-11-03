@@ -39,6 +39,7 @@
 #include "srsran/interfaces/ue_rrc_interfaces.h"
 #include "srsran/interfaces/ue_sdap_interfaces.h"
 #include "srsue/hdr/stack/upper/gw.h"
+#include <srsran/common/byte_buffer.h>
 
 namespace srsue {
 
@@ -115,6 +116,10 @@ public:
   void write_pdu_pcch(srsran::unique_byte_buffer_t pdu) final;
   void write_pdu_mch(uint32_t lcid, srsran::unique_byte_buffer_t pdu) final;
   void notify_pdcp_integrity_error(uint32_t lcid) final;
+
+  // JJW~
+  srsran::unique_byte_buffer_t recv_from_controller(void);
+  // ~JJW
 
   // NAS interface
   int      write_sdu(srsran::unique_byte_buffer_t sdu);
