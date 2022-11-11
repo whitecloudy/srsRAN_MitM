@@ -233,7 +233,9 @@ proc_outcome_t rrc_nr::setup_request_proc::step()
     rrc_handle.t300.run();
 
     // Send setup request message to lower layers
+    // JJW~
     rrc_handle.send_setup_request(cause);
+    // ~JJW
 
     // Save dedicatedInfoNAS SDU, if needed (TODO: this should be passed to procedure without temp storage)
     if (dedicated_info_nas.get()) {
@@ -317,9 +319,9 @@ rrc_nr::connection_setup_proc::connection_setup_proc(srsue::rrc_nr& parent_) :
   rrc_handle(parent_), logger(srslog::fetch_basic_logger("RRC-NR"))
 {}
 
-srsran::proc_outcome_t rrc_nr::connection_setup_proc::init(const asn1::rrc_nr::radio_bearer_cfg_s radio_bearer_cfg_,
-                                                           const asn1::rrc_nr::cell_group_cfg_s   cell_group_,
-                                                           srsran::unique_byte_buffer_t           dedicated_info_nas_)
+srsran::proc_outcome_t rrc_nr::connection_setup_proc::init(const asn1::rrc_nr::radio_bearer_cfg_s& radio_bearer_cfg_,
+                                                           const asn1::rrc_nr::cell_group_cfg_s&   cell_group_,
+                                                           srsran::unique_byte_buffer_t            dedicated_info_nas_)
 {
   Info("Starting...");
 
@@ -352,8 +354,9 @@ srsran::proc_outcome_t rrc_nr::connection_setup_proc::react(const bool& config_c
     logger.error("Connection Setup Failed");
     return proc_outcome_t::error;
   }
-
-  rrc_handle.send_con_setup_complete(std::move(dedicated_info_nas));
+  // JJW~
+  //rrc_handle.send_con_setup_complete(std::move(dedicated_info_nas));
+  // ~JJW
   return proc_outcome_t::success;
 }
 

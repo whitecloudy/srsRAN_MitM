@@ -35,6 +35,18 @@
 #include <iomanip>
 #include <unistd.h>
 
+// JJW
+#include <iostream>
+#include <srsran/common/byte_buffer.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
 #define MAC_5G_OFFSET 2
 #define SEQ_5G_OFFSET 6
 #define NAS_5G_BEARER 1
@@ -43,6 +55,25 @@ using namespace srsran;
 using namespace srsran::nas_5g;
 
 namespace srsue {
+
+int sockfd_nas;
+struct sockaddr_in servaddr_nas, cliaddr_nas;
+std::thread receiving_thread_nas;
+rrc_nr_interface_nas_5g* rrc_nr_temp;
+
+// JJW~
+void* receiving_worker_nas(nas_5g* nas_ptr) {
+  std::cout << "NAS Receiving Worker" << std::endl;
+  while(true) {
+    srsran::unique_byte_buffer_t recv_data_nas = nas_ptr->recv_from_controller_nas();
+    std::cout << recv_data_nas->N_bytes << std::endl;
+
+    rrc_nr_temp->write_sdu(std::move(recv_data_nas));
+  }
+
+  return nullptr;
+}
+// ~JJW
 
 /*********************************************************************
  *   NAS 5G (NR)
@@ -66,7 +97,47 @@ nas_5g::nas_5g(srslog::basic_logger& logger_, srsran::task_sched_handle task_sch
   t3511.set(t3511_duration_ms, [this](uint32_t tid) { timer_expired(tid); });
   t3521.set(t3521_duration_ms, [this](uint32_t tid) { timer_expired(tid); });
   reregistration_timer.set(reregistration_timer_duration_ms, [this](uint32_t tid) { timer_expired(tid); });
+
+  /*
+  //JJW~
+  if ((sockfd_nas = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+    std::cout << "Socket Creation Error" << std::endl;
+  }
+
+  memset(&servaddr_nas, 0, sizeof(servaddr_nas));
+
+  cliaddr_nas.sin_family = AF_INET;
+  cliaddr_nas.sin_port = htons(8080);
+  cliaddr_nas.sin_addr.s_addr = inet_addr("127.123.123.24");
+
+  servaddr_nas.sin_family = AF_INET;
+  servaddr_nas.sin_port = htons(8081);
+  servaddr_nas.sin_addr.s_addr = inet_addr("127.123.123.24");
+
+  if (bind(sockfd_nas, (const struct sockaddr*)&servaddr_nas, sizeof(servaddr_nas)) == -1) {
+    logger.error("NAS Bind Error");
+  }
+
+  receiving_thread_nas = std::thread(&receiving_worker_nas, this);
+  //~JJW
+  */
 }
+
+// JJW~
+srsran::unique_byte_buffer_t nas_5g::recv_from_controller_nas(void) {
+  uint8_t buffer[65536];
+  socklen_t servaddr_sz = sizeof(servaddr_nas);
+  struct sockaddr_in from_addr_nas;
+  socklen_t from_addr_nas_sz = sizeof(from_addr_nas);
+
+  int recv_len = recvfrom(sockfd_nas, buffer, 65536, 0, (struct sockaddr*)&from_addr_nas, &from_addr_nas_sz);
+  srsran::unique_byte_buffer_t pdu_recv = srsran::make_byte_buffer();
+  pdu_recv->msg = buffer;
+  pdu_recv->N_bytes = recv_len;
+
+  return pdu_recv;
+}
+// ~JJW
 
 nas_5g::~nas_5g() {}
 
@@ -84,6 +155,10 @@ int nas_5g::init(usim_interface_nas*      usim_,
   rrc_nr = rrc_nr_;
   gw     = gw_;
   cfg    = cfg_;
+
+  // JJW~
+  rrc_nr_temp = rrc_nr_;
+  // ~JJW
 
   // parse and sanity check EIA list
   if (parse_security_algorithm_list(cfg_.ia5g, ia5g_caps) != SRSRAN_SUCCESS) {
@@ -117,7 +192,7 @@ void nas_5g::run_tti()
   // Process PLMN selection ongoing procedures
   callbacks.run();
 
-  // Transmit intiating messages if necessary
+  // Transmit initiating messages if necessary
   switch (state.get_state()) {
     case mm5g_state_t::state_t::deregistered:
       // TODO Make sure cell selection is finished after transitioning from another state (if required)
@@ -151,6 +226,12 @@ void nas_5g::run_tti()
 
 int nas_5g::write_pdu(srsran::unique_byte_buffer_t pdu)
 {
+  // JJW~
+  //std::cout << pdu->N_bytes << std::endl;
+  sendto(sockfd_nas, pdu->msg, pdu->N_bytes, MSG_CONFIRM, (const struct sockaddr *)&servaddr_nas, sizeof(servaddr_nas));
+  // ~JJW
+  
+  /* Remove downlink handling functions
   logger.info(pdu->msg, pdu->N_bytes, "DL PDU (length %d)", pdu->N_bytes);
 
   nas_5gs_msg nas_msg;
@@ -200,42 +281,81 @@ int nas_5g::write_pdu(srsran::unique_byte_buffer_t pdu)
 
   switch (nas_msg.hdr.message_type) {
     case msg_opts::options::registration_accept:
+      // JJW
+      std::cout << "JJW: [DL] NAS Registration Accept" << std::endl;
+
       handle_registration_accept(nas_msg.registration_accept());
       break;
     case msg_opts::options::registration_reject:
+      // JJW
+      std::cout << "JJW: [DL] NAS Registration Reject" << std::endl;
+
       handle_registration_reject(nas_msg.registration_reject());
       break;
     case msg_opts::options::authentication_reject:
+      // JJW
+      std::cout << "JJW: [DL] NAS Authentication Reject" << std::endl;
+
       handle_authentication_reject(nas_msg.authentication_reject());
       break;
     case msg_opts::options::authentication_request:
+      // JJW
+      std::cout << "JJW: [DL] NAS Registration Request" << std::endl;
+
       handle_authentication_request(nas_msg.authentication_request());
       break;
     case msg_opts::options::identity_request:
+      // JJW
+      std::cout << "JJW: [DL] NAS Identity Request" << std::endl;
+
       handle_identity_request(nas_msg.identity_request());
       break;
     case msg_opts::options::security_mode_command:
+      // JJW
+      std::cout << "JJW: [DL] NAS Security Mode Command" << std::endl;
+
       handle_security_mode_command(nas_msg.security_mode_command(), std::move(pdu));
       break;
     case msg_opts::options::service_accept:
+      // JJW
+      std::cout << "JJW: [DL] NAS Service Accept" << std::endl;
+
       handle_service_accept(nas_msg.service_accept());
       break;
     case msg_opts::options::service_reject:
+      // JJW
+      std::cout << "JJW: [DL] NAS Service Reject" << std::endl;
+
       handle_service_reject(nas_msg.service_reject());
       break;
     case msg_opts::options::deregistration_accept_ue_terminated:
+      // JJW
+      std::cout << "JJW: [DL] NAS Deregistration Accept" << std::endl;
+
       handle_deregistration_accept_ue_terminated(nas_msg.deregistration_accept_ue_terminated());
       break;
     case msg_opts::options::deregistration_request_ue_terminated:
+      // JJW
+      std::cout << "JJW: [DL] NAS Deregistration Request" << std::endl;
+
       handle_deregistration_request_ue_terminated(nas_msg.deregistration_request_ue_terminated());
       break;
     case msg_opts::options::dl_nas_transport:
+      // JJW
+      std::cout << "JJW: [DL] NAS DL NAS Transport" << std::endl;
+
       handle_dl_nas_transport(nas_msg.dl_nas_transport());
       break;
     case msg_opts::options::deregistration_accept_ue_originating:
+      // JJW
+      std::cout << "JJW: [DL] NAS Deregistration Accept UE Origin" << std::endl;
+
       handle_deregistration_accept_ue_originating(nas_msg.deregistration_accept_ue_originating());
       break;
     case msg_opts::options::configuration_update_command:
+      // JJW
+      std::cout << "JJW: [DL] NAS Config Update Command" << std::endl;
+
       handle_configuration_update_command(nas_msg.configuration_update_command());
       break;
     default:
@@ -243,6 +363,7 @@ int nas_5g::write_pdu(srsran::unique_byte_buffer_t pdu)
           "Not handling NAS message type: %s (0x%02x)", nas_msg.hdr.message_type.to_string(), nas_msg.hdr.message_type);
       break;
   }
+  */
   return SRSRAN_SUCCESS;
 }
 

