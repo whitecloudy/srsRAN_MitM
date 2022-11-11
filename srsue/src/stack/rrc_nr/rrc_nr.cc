@@ -79,7 +79,6 @@ void* receiving_worker(rrc_nr* rrc_ptr) {
   std::cout << "RRC Receiving Worker" << std::endl;
   while(true) {
     srsran::unique_byte_buffer_t recv_data = rrc_ptr->recv_from_controller();
-    std::cout << recv_data->N_bytes << std::endl;
 
     switch (static_cast<nr_srb>(lcid_tmp)) {
       case nr_srb::srb0:
@@ -89,18 +88,17 @@ void* receiving_worker(rrc_nr* rrc_ptr) {
       case nr_srb::srb1:
       case nr_srb::srb2:
         //decode_dl_dcch(lcid, std::move(pdu));
-        pdcp_temp->write_sdu(lcid_tmp, std::move(recv_data));
+        pdcp_temp->write_sdu(srb_to_lcid(nr_srb::srb1), std::move(recv_data));
         break;
       default:
         //logger.error("RX PDU with invalid bearer id: %d", lcid);
+	std::cout << "Write Error" << std::endl;
         break;
     }
   }
 
   return nullptr;
 }
-
-
 // ~JJW
 
 rrc_nr::rrc_nr(srsran::task_sched_handle task_sched_) :
@@ -138,6 +136,7 @@ rrc_nr::rrc_nr(srsran::task_sched_handle task_sched_) :
   if (bind(sockfd, (const struct sockaddr*)&servaddr, sizeof(servaddr)) == -1) {
     logger.error("RRC Bind Error");
   }
+
 
   receiving_thread = std::thread(&receiving_worker, this);
   std::cout << "RRC Receiving Thread Started" << std::endl;
@@ -257,9 +256,8 @@ void rrc_nr::send_to_controller_pdu(uint32_t lcid, srsran::unique_byte_buffer_t 
   buffer.channel = lcid;
   memcpy(buffer.msg, pdu->msg, pdu->N_bytes);
   
-  sendto(sockfd, buffer, pdu->N_bytes+sizeof(uint32_t), 0, (struct sockaddr*)&cliaddr, sizeof(cliaddr));
+  sendto(sockfd, &buffer, pdu->N_bytes+sizeof(uint32_t), 0, (struct sockaddr*)&cliaddr, sizeof(cliaddr));
 }
-
 // ~JJW
 
 void rrc_nr::stop()
@@ -391,26 +389,25 @@ void rrc_nr::write_pdu(uint32_t lcid, srsran::unique_byte_buffer_t pdu)
   // JJW~
   //std::cout << pdu->N_bytes << std::endl;
   
-  send_to_controller_pdu(lcid, std::move(pdu));
   //sendto(sockfd, pdu->msg, pdu->N_bytes, MSG_CONFIRM, (const struct sockaddr *)&cliaddr, sizeof(cliaddr));
   lcid_tmp = lcid;
   // ~JJW
 
-  /* Remove downlink handling functions
   logger.debug("RX PDU, LCID: %d", lcid);
   switch (static_cast<nr_srb>(lcid)) {
     case nr_srb::srb0:
-      decode_dl_ccch(std::move(pdu));
-      break;
+        //send_to_controller_pdu(lcid, std::move(pdu));
+        decode_dl_ccch(std::move(pdu));
+        break;
     case nr_srb::srb1:
     case nr_srb::srb2:
-      decode_dl_dcch(lcid, std::move(pdu));
-      break;
+        //decode_dl_dcch(lcid, std::move(pdu_temp));
+        send_to_controller_pdu(lcid, std::move(pdu));
+        break;
     default:
-      logger.error("RX PDU with invalid bearer id: %d", lcid);
-      break;
-  }
-  */
+        logger.error("RX PDU with invalid bearer id: %d", lcid);
+        break;
+    }
 }
 
 void rrc_nr::decode_dl_ccch(unique_byte_buffer_t pdu)
@@ -456,6 +453,7 @@ void rrc_nr::decode_dl_ccch(unique_byte_buffer_t pdu)
 
       // JJW~
       std::cout << "JJW: [DL CCCH] RRC Setup" << std::endl;
+      lcid_tmp = srb_to_lcid(nr_srb::srb1);
       /*
       std::cout << dl_ccch_msg.msg.c1().type().to_string() << std::endl;
       std::cout << pdu->N_bytes << std::endl;
@@ -823,7 +821,9 @@ void rrc_nr::send_security_mode_complete()
 {
   ul_dcch_msg_s ul_dcch_msg;
   auto&         smc = ul_dcch_msg.msg.set_c1().set_security_mode_complete().crit_exts.set_security_mode_complete();
-  send_ul_dcch_msg(srb_to_lcid(nr_srb::srb1), ul_dcch_msg);
+  // JJW~
+  //send_ul_dcch_msg(srb_to_lcid(nr_srb::srb1), ul_dcch_msg);
+  // ~JJW
 }
 
 void rrc_nr::send_setup_request(srsran::nr_establishment_cause_t cause)
@@ -1039,7 +1039,9 @@ int rrc_nr::send_ue_capability_info(const asn1::rrc_nr::ue_cap_enquiry_s& msg)
       ue_cap_info.ue_cap_rat_container_list.push_back(ue_cap_rat_container);
     }
   }
-  send_ul_dcch_msg(srb_to_lcid(nr_srb::srb1), ul_dcch_msg);
+  // JJW~
+  //send_ul_dcch_msg(srb_to_lcid(nr_srb::srb1), ul_dcch_msg);
+  // ~JJW
   return SRSASN_SUCCESS;
 }
 
@@ -2471,7 +2473,9 @@ void rrc_nr::handle_dl_info_transfer(const dl_info_transfer_s& dl_info_transfer)
   }
   pdu->N_bytes = dl_info_transfer.crit_exts.dl_info_transfer().ded_nas_msg.size();
   memcpy(pdu->msg, dl_info_transfer.crit_exts.dl_info_transfer().ded_nas_msg.data(), pdu->N_bytes);
-  nas->write_pdu(std::move(pdu));
+  // JJW~
+  //nas->write_pdu(std::move(pdu));
+  // ~JJW
 }
 
 void rrc_nr::handle_security_mode_command(const asn1::rrc_nr::security_mode_cmd_s& smc)
