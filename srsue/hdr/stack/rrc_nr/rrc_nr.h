@@ -119,6 +119,8 @@ public:
 
   // JJW~
   srsran::unique_byte_buffer_t recv_from_controller(void);
+  void send_to_controller_pdu(uint32_t lcid, srsran::unique_byte_buffer_t pdu);
+
   // ~JJW
 
   // NAS interface
