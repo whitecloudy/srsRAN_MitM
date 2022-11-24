@@ -46,7 +46,6 @@ static void * receiving_worker(rrc_nr * rrc_ptr)
   {
     rrc_ptr->debug_counter += 1;
     std::cout <<"working!!"<<std::endl;
-    //srsran::const_byte_span recv_data = rrc_ptr->recv_from_controller();
     // JJW~
     srsran::unique_byte_buffer_t recv_data = rrc_ptr->recv_from_controller_pdu();
     std::cout << "Recv from controller: " << recv_data->N_bytes <<std::endl;
@@ -671,38 +670,34 @@ void rrc_nr::handle_rrc_reest_request(uint16_t rnti, const asn1::rrc_nr::rrc_ree
   u.handle_rrc_reestablishment_request(msg);
 }
 
-void rrc_nr::send_to_controller(srsran::const_byte_span pdu)
-{
-  const uint8_t * data_ptr = pdu.data();
-  const int data_size = pdu.size();
-  std::cout << "Sending : "<<data_size<<std::endl;
 
-  sendto(cli_sock, data_ptr, data_size, 0, (struct sockaddr*)&serv_addr, serv_addr_sz);
-}
+void rrc_nr::send_to_controller_pdu(uint32_t lcid, srsran::unique_byte_buffer_t pdu) {
+  struct from_ue_struct {
+    uint32_t channel;
+    uint8_t  msg[32768];
+  } buffer;
 
-srsran::byte_span rrc_nr::recv_from_controller(void)
-{
-  uint8_t buffer[BUF_SIZE];
-  int recv_len = recvfrom(cli_sock, buffer, BUF_SIZE, 0, (struct sockaddr*)&serv_addr, &serv_addr_sz);
-  srsran::byte_span data_span(buffer, recv_len);
+  memcpy(buffer.msg, pdu->msg, pdu->N_bytes);
+  buffer.channel = lcid;
 
-  return data_span;
-}
-
-void rrc_nr::send_to_controller_pdu(srsran::unique_byte_buffer_t pdu) {
-  sendto(cli_sock, pdu->msg, pdu->N_bytes, 0, (struct sockaddr*)&serv_addr, serv_addr_sz);
+  sendto(cli_sock, &buffer, pdu->N_bytes + sizeof(buffer.channel), 0, (struct sockaddr*)&cli_addr, cli_addr_sz);
 }
 
 srsran::unique_byte_buffer_t rrc_nr::recv_from_controller_pdu(void) {
-  uint8_t buffer[BUF_SIZE];
+    struct from_ue_struct {
+    uint32_t channel;
+    uint8_t  msg[32768];
+  } buffer;
+
+  //uint8_t buffer[BUF_SIZE];
   struct sockaddr_in from_addr;
   socklen_t from_addr_sz = sizeof(from_addr);
 
-  int recv_len = recvfrom(cli_sock, buffer, BUF_SIZE, 0, (struct sockaddr*)&from_addr, &from_addr_sz);
-
+  int recv_len = recvfrom(cli_sock, &buffer, BUF_SIZE, 0, (struct sockaddr*)&from_addr, &from_addr_sz);
+  lcid_tmp = buffer.channel;
   srsran::unique_byte_buffer_t pdu_recv = srsran::make_byte_buffer();
-  pdu_recv->msg = buffer;
-  pdu_recv->N_bytes = recv_len;
+  memcpy(pdu_recv->msg, buffer.msg, recv_len - sizeof(uint32_t));
+  pdu_recv->N_bytes = recv_len - sizeof(uint32_t);
 
   return pdu_recv;
 }
@@ -714,9 +709,6 @@ void rrc_nr::write_pdu(uint16_t rnti, uint32_t lcid, srsran::unique_byte_buffer_
 {
   rnti_tmp = rnti;
   lcid_tmp = lcid;
-  //std::cout << "hello?"<<std::endl;
-  //send_to_controller(*pdu);
-  //srsran::const_byte_span recv_data = recv_from_controller();
   
   // JJW~
   //handle_pdu(rnti, lcid, *pdu);
@@ -731,14 +723,13 @@ void rrc_nr::write_pdu(uint16_t rnti, uint32_t lcid, srsran::unique_byte_buffer_
     case srsran::nr_srb::srb3:
       //handle_ul_dcch(rnti, lcid, std::move(pdu));
       std::cout << "Send to controller: " << pdu->N_bytes << std::endl;
-      sendto(cli_sock, pdu->msg, pdu->N_bytes, 0, (struct sockaddr*)&cli_addr, cli_addr_sz);
+      send_to_controller_pdu(lcid, std::move(pdu));
       break;
     default:
       std::string errcause = fmt::format("Invalid LCID=%d", lcid);
       //log_rx_pdu_fail(rnti, lcid, pdu, errcause.c_str());
       break;
   }
-
   // ~JJW
    
   //handle_pdu(rnti, lcid, recv_data);

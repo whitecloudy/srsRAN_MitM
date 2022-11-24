@@ -56,25 +56,6 @@ using namespace srsran::nas_5g;
 
 namespace srsue {
 
-int sockfd_nas;
-struct sockaddr_in servaddr_nas, cliaddr_nas;
-std::thread receiving_thread_nas;
-rrc_nr_interface_nas_5g* rrc_nr_temp;
-
-// JJW~
-void* receiving_worker_nas(nas_5g* nas_ptr) {
-  std::cout << "NAS Receiving Worker" << std::endl;
-  while(true) {
-    srsran::unique_byte_buffer_t recv_data_nas = nas_ptr->recv_from_controller_nas();
-    std::cout << recv_data_nas->N_bytes << std::endl;
-
-    rrc_nr_temp->write_sdu(std::move(recv_data_nas));
-  }
-
-  return nullptr;
-}
-// ~JJW
-
 /*********************************************************************
  *   NAS 5G (NR)
  ********************************************************************/
@@ -98,46 +79,8 @@ nas_5g::nas_5g(srslog::basic_logger& logger_, srsran::task_sched_handle task_sch
   t3521.set(t3521_duration_ms, [this](uint32_t tid) { timer_expired(tid); });
   reregistration_timer.set(reregistration_timer_duration_ms, [this](uint32_t tid) { timer_expired(tid); });
 
-  /*
-  //JJW~
-  if ((sockfd_nas = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-    std::cout << "Socket Creation Error" << std::endl;
-  }
-
-  memset(&servaddr_nas, 0, sizeof(servaddr_nas));
-
-  cliaddr_nas.sin_family = AF_INET;
-  cliaddr_nas.sin_port = htons(8080);
-  cliaddr_nas.sin_addr.s_addr = inet_addr("127.123.123.24");
-
-  servaddr_nas.sin_family = AF_INET;
-  servaddr_nas.sin_port = htons(8081);
-  servaddr_nas.sin_addr.s_addr = inet_addr("127.123.123.24");
-
-  if (bind(sockfd_nas, (const struct sockaddr*)&servaddr_nas, sizeof(servaddr_nas)) == -1) {
-    logger.error("NAS Bind Error");
-  }
-
-  receiving_thread_nas = std::thread(&receiving_worker_nas, this);
-  //~JJW
-  */
 }
 
-// JJW~
-srsran::unique_byte_buffer_t nas_5g::recv_from_controller_nas(void) {
-  uint8_t buffer[65536];
-  socklen_t servaddr_sz = sizeof(servaddr_nas);
-  struct sockaddr_in from_addr_nas;
-  socklen_t from_addr_nas_sz = sizeof(from_addr_nas);
-
-  int recv_len = recvfrom(sockfd_nas, buffer, 65536, 0, (struct sockaddr*)&from_addr_nas, &from_addr_nas_sz);
-  srsran::unique_byte_buffer_t pdu_recv = srsran::make_byte_buffer();
-  pdu_recv->msg = buffer;
-  pdu_recv->N_bytes = recv_len;
-
-  return pdu_recv;
-}
-// ~JJW
 
 nas_5g::~nas_5g() {}
 
@@ -155,10 +98,6 @@ int nas_5g::init(usim_interface_nas*      usim_,
   rrc_nr = rrc_nr_;
   gw     = gw_;
   cfg    = cfg_;
-
-  // JJW~
-  rrc_nr_temp = rrc_nr_;
-  // ~JJW
 
   // parse and sanity check EIA list
   if (parse_security_algorithm_list(cfg_.ia5g, ia5g_caps) != SRSRAN_SUCCESS) {
@@ -226,12 +165,6 @@ void nas_5g::run_tti()
 
 int nas_5g::write_pdu(srsran::unique_byte_buffer_t pdu)
 {
-  // JJW~
-  //std::cout << pdu->N_bytes << std::endl;
-  sendto(sockfd_nas, pdu->msg, pdu->N_bytes, MSG_CONFIRM, (const struct sockaddr *)&servaddr_nas, sizeof(servaddr_nas));
-  // ~JJW
-  
-  /* Remove downlink handling functions
   logger.info(pdu->msg, pdu->N_bytes, "DL PDU (length %d)", pdu->N_bytes);
 
   nas_5gs_msg nas_msg;
@@ -363,7 +296,6 @@ int nas_5g::write_pdu(srsran::unique_byte_buffer_t pdu)
           "Not handling NAS message type: %s (0x%02x)", nas_msg.hdr.message_type.to_string(), nas_msg.hdr.message_type);
       break;
   }
-  */
   return SRSRAN_SUCCESS;
 }
 

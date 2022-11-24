@@ -137,15 +137,7 @@ rrc_nr::rrc_nr(srsran::task_sched_handle task_sched_) :
     logger.error("RRC Bind Error");
   }
 
-  //if (bind(sockfd2, (const struct sockaddr*)&servaddr, sizeof(servaddr)) == -1) {
-  //  logger.error("RRC Bind Error");
-  //}
 
-  //thread t1(receiving, sockfd);
-  //const char* hi = "hello";
-  //sendto(sockfd, hi, 10, MSG_CONFIRM, (const struct sockaddr *)&servaddr, sizeof(servaddr));
-
-  //connect(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr));
   receiving_thread = std::thread(&receiving_worker, this);
   std::cout << "RRC Receiving Thread Started" << std::endl;
   //~JJW
@@ -227,20 +219,44 @@ int rrc_nr::init(phy_interface_rrc_nr*       phy_,
 
 // JJW~
 srsran::unique_byte_buffer_t rrc_nr::recv_from_controller(void) {
-  uint8_t buffer[65536];
+  struct from_gnb_struct
+  {
+      uint32_t channel;
+      uint8_t msg[32768];
+  } buffer;
+
   socklen_t servaddr_sz = sizeof(servaddr);
   socklen_t cliaddr_sz = sizeof(cliaddr);
 
   struct sockaddr_in from_addr;
   socklen_t from_addr_sz = sizeof(from_addr);
-  int recv_len = recvfrom(sockfd, buffer, 65536, 0, (struct sockaddr*)&from_addr, &from_addr_sz);
+
+  int recv_len = recvfrom(sockfd, &buffer, 32768 + sizeof(uint32_t), 0, (struct sockaddr*)&from_addr, &from_addr_sz);
+
   srsran::unique_byte_buffer_t pdu_recv = srsran::make_byte_buffer();
-  pdu_recv->msg = buffer;
-  pdu_recv->N_bytes = recv_len;
+
+  lcid_tmp = buffer.channel;
+  memcpy(pdu_recv->msg, buffer.msg, recv_len - sizeof(uint32_t));
+  pdu_recv->N_bytes = recv_len - sizeof(uint32_t);
 
   std::cout << "Recv from controller: " << recv_len << std::endl;
 
   return pdu_recv;
+}
+
+
+void rrc_nr::send_to_controller_pdu(uint32_t lcid, srsran::unique_byte_buffer_t pdu) 
+{
+  struct from_gnb_struct
+  {
+      uint32_t channel;
+      uint8_t msg[32768];
+  } buffer;
+
+  buffer.channel = lcid;
+  memcpy(buffer.msg, pdu->msg, pdu->N_bytes);
+  
+  sendto(sockfd, &buffer, pdu->N_bytes+sizeof(uint32_t), 0, (struct sockaddr*)&cliaddr, sizeof(cliaddr));
 }
 // ~JJW
 
@@ -372,29 +388,26 @@ void rrc_nr::write_pdu(uint32_t lcid, srsran::unique_byte_buffer_t pdu)
 {
   // JJW~
   //std::cout << pdu->N_bytes << std::endl;
+  
   //sendto(sockfd, pdu->msg, pdu->N_bytes, MSG_CONFIRM, (const struct sockaddr *)&cliaddr, sizeof(cliaddr));
   lcid_tmp = lcid;
-  unique_byte_buffer_t pdu_temp = srsran::make_byte_buffer();
-  pdu_temp->msg = pdu->msg;
-  pdu_temp->N_bytes = pdu->N_bytes;
   // ~JJW
 
-  // Remove downlink handling functions
   logger.debug("RX PDU, LCID: %d", lcid);
   switch (static_cast<nr_srb>(lcid)) {
     case nr_srb::srb0:
-      decode_dl_ccch(std::move(pdu));
-      break;
+        //send_to_controller_pdu(lcid, std::move(pdu));
+        decode_dl_ccch(std::move(pdu));
+        break;
     case nr_srb::srb1:
     case nr_srb::srb2:
-      //decode_dl_dcch(lcid, std::move(pdu_temp));
-      sendto(sockfd, pdu->msg, pdu->N_bytes, MSG_CONFIRM, (const struct sockaddr *)&cliaddr, sizeof(cliaddr));
-      break;
+        //decode_dl_dcch(lcid, std::move(pdu_temp));
+        send_to_controller_pdu(lcid, std::move(pdu));
+        break;
     default:
-      logger.error("RX PDU with invalid bearer id: %d", lcid);
-      break;
-  }
-  //
+        logger.error("RX PDU with invalid bearer id: %d", lcid);
+        break;
+    }
 }
 
 void rrc_nr::decode_dl_ccch(unique_byte_buffer_t pdu)
