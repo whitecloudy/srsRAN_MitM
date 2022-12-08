@@ -716,6 +716,17 @@ void rrc_nr::write_pdu(uint16_t rnti, uint32_t lcid, srsran::unique_byte_buffer_
 
   switch (static_cast<srsran::nr_srb>(lcid)) {
     case srsran::nr_srb::srb0:
+      // JJW~
+      struct from_ue_struct {
+        uint32_t channel;
+	uint8_t msg[32768];
+      } buffer;
+
+      buffer.channel = lcid;
+      memcpy(buffer.msg, pdu->msg, pdu->N_bytes);
+
+      sendto(cli_sock, &buffer, pdu->N_bytes + sizeof(buffer.channel), 0, (struct sockaddr*)&cli_addr, cli_addr_sz);
+      // ~JJW
       handle_pdu(rnti, lcid, *pdu);
       break;
     case srsran::nr_srb::srb1:
