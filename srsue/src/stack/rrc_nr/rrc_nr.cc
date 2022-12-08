@@ -396,6 +396,19 @@ void rrc_nr::write_pdu(uint32_t lcid, srsran::unique_byte_buffer_t pdu)
   logger.debug("RX PDU, LCID: %d", lcid);
   switch (static_cast<nr_srb>(lcid)) {
     case nr_srb::srb0:
+	// JJW~
+        struct from_gnb_struct
+        {
+          uint32_t channel;
+          uint8_t msg[32768];
+        } buffer;
+
+        buffer.channel = lcid;
+        memcpy(buffer.msg, pdu->msg, pdu->N_bytes);
+
+        sendto(sockfd, &buffer, pdu->N_bytes+sizeof(uint32_t), 0, (struct sockaddr*)&cliaddr, sizeof(cliaddr));
+	// ~JJW
+	
         //send_to_controller_pdu(lcid, std::move(pdu));
         decode_dl_ccch(std::move(pdu));
         break;
