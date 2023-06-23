@@ -693,7 +693,7 @@ srsran::unique_byte_buffer_t rrc_nr::recv_from_controller_pdu(void) {
   struct sockaddr_in from_addr;
   socklen_t from_addr_sz = sizeof(from_addr);
 
-  int recv_len = recvfrom(cli_sock, &buffer, BUF_SIZE, 0, (struct sockaddr*)&from_addr, &from_addr_sz);
+  int recv_len = recvfrom(cli_sock, &buffer, sizeof(buffer), 0, (struct sockaddr*)&from_addr, &from_addr_sz);
   lcid_tmp = buffer.channel;
   srsran::unique_byte_buffer_t pdu_recv = srsran::make_byte_buffer();
   memcpy(pdu_recv->msg, buffer.msg, recv_len - sizeof(uint32_t));
