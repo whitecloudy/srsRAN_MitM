@@ -114,7 +114,7 @@ const char* key_set_identifier_t::nas_key_set_identifier_type_::to_string() cons
     case nas_key_set_identifier_type_::no_key_is_available_or_reserved:
       return "no key is available or reserved";
     default:
-      return "Invalid Choice";
+      return std::to_string((int)value).c_str();
   }
 }
 // IE: 5GS mobile identity
